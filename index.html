@@ -1350,14 +1350,18 @@ body.bare .viewport{border-radius:0}
 })();
 </script>
 <script>
-/* 화면 높이·폭에 맞춰 폰 프레임 크기 자동 조절 */
+/* 첫 화면 비율 고정: 폰 높이 = 창 높이의 93.5%, 왼쪽 목록·간격은 폰과 같은 비율로 확대·축소 */
 (function(){
-  var dev=document.querySelector('.device');
+  var dev=document.querySelector('.device'),side=document.querySelector('.side');
+  var K=1.274; /* 목록·간격은 폰 대비 이 배율 (기준 스크린샷 비율) */
   function fit(){
-    if(document.body.classList.contains('bare')){dev.style.zoom='';return;}
-    var side=window.innerWidth>760?260:0;
-    var z=Math.min(1,(window.innerHeight-48)/868,(window.innerWidth-side-24)/414);
-    dev.style.zoom=z<1?z.toFixed(3):'';
+    if(document.body.classList.contains('bare')){dev.style.zoom='';side.style.zoom='';document.body.style.gap='';return;}
+    var wide=window.innerWidth>760;
+    var z=window.innerHeight*0.935/868;
+    z=Math.min(z,(window.innerWidth*0.94)/(wide?414+(220+40)*K:414));
+    dev.style.zoom=z.toFixed(4);side.style.zoom=wide?(z*K).toFixed(4):'';
+    document.body.style.gap=wide?Math.round(40*K*z)+'px':'';
+    document.body.style.padding='0';
   }
   window.addEventListener('resize',fit);fit();
 })();
