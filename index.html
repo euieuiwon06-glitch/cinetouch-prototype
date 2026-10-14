@@ -1,0 +1,1366 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CINETOUCH 프로토타입</title>
+<meta name="description" content="CINETOUCH 영화관 앱 인터랙티브 프로토타입 — 영화관 선택부터 좌석, 결제, 발권까지 직접 눌러 볼 수 있습니다.">
+<meta name="theme-color" content="#fff39a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<style>
+:root{
+  --butter:#fff39a; --bg:#f2f2f2; --white:#fff;
+  --ink:#1c1917; --ink2:#0f1015; --ink3:#191c1d; --dark:#362c1d;
+  --yellow:#fde047; --yellow-soft:#fef08a; --sel:#fffbdb; --brown:#47311e;
+  --g40:#404040; --g52:#525252; --g5b:#5b5b5b; --g72:#727272; --g73:#737373; --g99:#999; --ga3:#a3a3a3;
+  --chip:#eaeaea; --line:#e3e3e3;
+  --shadow:0 4px 16px rgba(0,0,0,.1);
+  --shadow-up:0 -4px 16px rgba(0,0,0,.14);
+  --page:#e4e4e4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{line-height:1.2;white-space:nowrap;background:var(--page);font-family:'Noto Sans KR',sans-serif;color:var(--ink);display:flex;align-items:center;justify-content:center;gap:40px;min-height:100vh;padding:24px;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:inherit}
+a{color:inherit;text-decoration:none}
+p{white-space:nowrap}
+.ms{font-family:'Material Symbols Rounded';font-weight:400;font-style:normal;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;-webkit-font-feature-settings:'liga';font-feature-settings:'liga';font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;user-select:none}
+.ms.b{font-variation-settings:'FILL' 0,'wght' 700,'GRAD' 0,'opsz' 24}
+.b7{font-weight:700}.b5{font-weight:500}.b9{font-weight:900}
+.tap{cursor:pointer;transition:transform .12s ease,filter .12s ease}
+.tap:active{transform:scale(.97);filter:brightness(.97)}
+
+/* ---------- side panel ---------- */
+.side{width:220px;display:flex;flex-direction:column;gap:6px}
+.side h1{font-size:18px;font-weight:900;margin-bottom:4px}
+.side .hint{white-space:normal;font-size:12px;color:var(--g72);margin-bottom:10px;line-height:1.5;white-space:normal}
+.side button{padding:10px 14px;border-radius:12px;background:#fff;font-size:13px;font-weight:500;box-shadow:var(--shadow)}
+.side button.on{background:var(--sel);outline:2px solid var(--yellow);font-weight:700}
+@media (max-width:760px){.side{display:none}}
+
+/* ---------- iPhone frame ---------- */
+.device{position:relative;width:414px;height:868px;border-radius:64px;background:#111;padding:12px;box-shadow:0 30px 80px rgba(0,0,0,.28),inset 0 0 0 2px #333;flex:none}
+.device::before{content:'';position:absolute;left:-3px;top:170px;width:3px;height:64px;border-radius:2px 0 0 2px;background:#222;box-shadow:0 84px 0 #222}
+.device::after{content:'';position:absolute;right:-3px;top:220px;width:3px;height:96px;border-radius:0 2px 2px 0;background:#222}
+.viewport{position:relative;width:390px;height:844px;border-radius:52px;overflow:hidden;background:var(--butter);isolation:isolate}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:124px;height:36px;border-radius:20px;background:#000;z-index:100}
+.status{position:absolute;inset:0 0 auto 0;height:50px;z-index:99;display:flex;justify-content:space-between;align-items:center;padding:6px 30px 0 44px;pointer-events:none;font-weight:700;font-size:16px;color:#000}
+.status .r{display:flex;gap:6px;align-items:center}
+body.bare{padding:0;display:block;min-height:0;background:#fff}
+body.bare .side,body.bare .island,body.bare .status,body.bare .homebar{display:none}
+body.bare .device{width:390px;height:844px;padding:0;border-radius:0;box-shadow:none;background:none}
+body.bare .device::before,body.bare .device::after{display:none}
+body.bare .viewport{border-radius:0}
+.homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#111;z-index:100;pointer-events:none}
+
+/* ---------- screens ---------- */
+.screen{position:absolute;inset:0;background:var(--butter);visibility:hidden}
+.screen.active{visibility:visible}
+.scroll{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;overscroll-behavior:contain}
+.scroll::-webkit-scrollbar,.hscroll::-webkit-scrollbar{display:none}
+.hscroll{overflow-x:auto;scrollbar-width:none}
+
+/* header */
+.hdr{background:var(--butter);padding:58px 20px 13px;display:flex;justify-content:space-between;align-items:center}
+.cbtn{width:44px;height:44px;border-radius:22px;background:#fff;border:1px solid rgba(0,0,0,.05);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;flex:none}
+.cbtn .ms{font-size:22px;color:var(--ink)}
+.bpill{display:flex;gap:6px;align-items:center;padding:6px 16px;border-radius:99px;background:rgba(255,255,255,.7);border:1px solid rgba(0,0,0,.1);color:var(--ink)}
+.bpill .ms{font-size:18px}.bpill p{font-size:13px;font-weight:500}
+
+/* sheet (grey content area) */
+.sheet{position:relative;background:var(--bg);border-radius:32px 32px 0 0;box-shadow:var(--shadow-up)}
+
+/* CTA capsule */
+.cta{height:56px;border-radius:28px;background:var(--dark);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 24px;color:#fff}
+.cta p{font-size:15px;font-weight:700}
+.cta .sub{font-size:12px;font-weight:400;color:rgba(255,255,255,.6)}
+.cta .arw{width:40px;height:40px;border-radius:20px;background:var(--yellow);display:flex;align-items:center;justify-content:center;flex:none}
+.cta .arw .ms{font-size:20px;color:#000}
+
+/* line tile */
+.lt{border:2px solid var(--brown);color:var(--brown);border-radius:16px;display:flex;align-items:center;justify-content:center;flex:none}
+
+/* chips */
+.chip{display:inline-flex;align-items:flex-start;padding:2px 8px;border-radius:99px;background:var(--chip);font-size:10px;font-weight:700;color:var(--g5b)}
+.chip.y{background:var(--sel);border:1px solid var(--yellow);color:#713f12}
+.card{background:#fff;box-shadow:var(--shadow)}
+
+/* tab bar */
+.tabbar{display:flex;padding:6px;border-radius:99px;background:rgba(242,242,242,.96);border:1px solid #e2e2e2;box-shadow:var(--shadow)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:99px;color:var(--g52)}
+.tab .ms{font-size:20px}.tab p{font-size:11px;font-weight:500}
+.tab.on{background:#e4e4e4;color:#3f3f3f}.tab.on p{font-weight:700}
+
+/* fixed bottom action dock */
+.dock{position:absolute;left:0;right:0;bottom:0;z-index:5;background:rgba(242,242,242,.96);border-top:1px solid var(--line);box-shadow:0 -7px 30px rgba(0,0,0,.15);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
+/* ================= HOME ================= */
+#home .homebg{position:absolute;inset:127px 0 0 0;background:var(--bg);border-radius:32px 32px 0 0;box-shadow:var(--shadow-up)}
+#home .logo{position:absolute;left:17px;top:67.7px;width:138px;height:18.4px}
+#home .tagline{position:absolute;left:17px;top:90.5px;font-size:10px;font-weight:500;color:#535353;letter-spacing:1.5px}
+#home .bell{position:absolute;left:331px;top:56px;width:42px;height:42px;border-radius:22px;background:#fff;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center}
+#home .bell .ms{font-size:22px;color:var(--ink)}
+#home .bell i{position:absolute;left:29px;top:8px;width:7px;height:7px;border-radius:50%;background:var(--yellow);box-shadow:0 0 0 1.5px #fff}
+.dcard{position:absolute;left:16px;top:157px;width:358px;height:228px;border-radius:28px;background:var(--dark);box-shadow:var(--shadow);overflow:hidden;padding:24px;display:flex;flex-direction:column;align-items:flex-start}
+.dcard .decor{position:absolute;left:263px;top:23px;width:120px;height:200px;transform:rotate(-25deg);transform-origin:center}
+.dcard .ticon{width:40.8px;height:27.2px;position:relative}
+.dcard .t1{margin-top:14px;font-size:13px;font-weight:500;color:#e5e5e5;position:relative}
+.dcard .t2{margin-top:2px;font-size:28px;font-weight:700;color:#fff;position:relative}
+.dcard .t3{margin-top:4px;font-size:13px;color:#a7a7a7;position:relative}
+.dcard .pills{margin-top:22px;display:flex;gap:8px;position:relative}
+.mpill{height:36px;border-radius:18px;background:#fff;display:flex;align-items:center;gap:8px;padding:0 16px 0 6px;overflow:hidden}
+.mpill .th{width:26px;height:26px;border-radius:50%;overflow:hidden;flex:none}
+.mpill .th img{width:100%;height:100%;object-fit:cover}
+.mpill .th.crop img{transform:scale(1.67)}
+.mpill p{font-size:14px;font-weight:700;color:var(--ink)}
+.dcard .go{position:absolute;left:286px;top:153px;width:48px;height:48px;border-radius:24px;background:var(--yellow);display:flex;align-items:center;justify-content:center}
+.dcard .go .ms{font-size:24px;color:var(--ink)}
+.qcard{position:absolute;top:415.5px;width:164px;height:186px;border-radius:28px;padding:20px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start}
+.qcard h3{font-size:16px;font-weight:700;color:var(--ink2)}
+.qcard .d{font-size:12px;color:var(--g73);margin-top:4px}
+.qcard .lk{display:flex;gap:4px;align-items:center;font-size:12px;font-weight:700;color:var(--ink2)}
+.qcard .lk .ms{font-size:16px;color:#000}
+.util{position:absolute;left:24px;right:24px;top:624.5px;height:61px;border-radius:24px;padding:8px;display:flex;gap:8px}
+.util button{flex:1;height:44px;border-radius:99px;background:var(--bg);display:flex;gap:6px;align-items:center;justify-content:center;color:var(--ink2)}
+.util .ms{font-size:18px}.util p{font-size:12px;font-weight:500}
+#home .tabbar{position:absolute;left:16px;top:751px;width:358px;height:65px;box-shadow:var(--shadow);background:rgba(243,243,243,.96)}
+
+/* ================= 01-1 THEATER ================= */
+#theater .sheet{padding:24px 16px 161px;display:flex;flex-direction:column;gap:16px}
+.search{height:52px;border-radius:26px;display:flex;align-items:center;gap:10px;padding:0 20px}
+.search .ms{font-size:20px;color:var(--g72)}.search p{font-size:14px;color:var(--g99)}
+.loc{border-radius:24px;padding:16px;display:flex;justify-content:space-between;align-items:center}
+.loc .l{display:flex;gap:14px;align-items:center}
+.reset{display:flex;gap:4px;align-items:center;padding:6px 12px;border-radius:99px;background:var(--chip);font-size:12px;font-weight:700}
+.reset .ms{font-size:14px}
+.regions{display:flex;gap:8px;padding:2px 0 6px;margin:0 -16px;padding-left:16px;padding-right:16px}
+.region{display:flex;gap:4px;align-items:center;padding:10px 16px;border-radius:99px;background:#fff;box-shadow:var(--shadow);flex:none;font-weight:500}
+.region b{font-size:13px;font-weight:500;color:var(--g72)}.region i{font-style:normal;font-size:11px;color:var(--g99)}
+.region.is-sel{background:var(--sel);border:2px solid var(--yellow);box-shadow:none}
+.region.is-sel b{font-weight:700;color:var(--ink)}.region.is-sel i{font-weight:700;color:#472e1e}
+.theater{border-radius:20px;padding:16px;display:flex;justify-content:space-between;align-items:center;background:#fff;box-shadow:var(--shadow)}
+.theater .c{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
+.theater .n{display:flex;gap:6px;align-items:center}.theater .n p{font-size:15px;font-weight:700}
+.theater .n .ms{font-size:16px;color:#d5d5d5}.theater .n .ms.fav{color:#f59e0b}
+.theater .tags{display:flex;gap:4px}.theater .tags .chip{color:#57575b}
+.theater .a{font-size:12px;color:var(--g72)}
+.theater .r{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.theater .dist{font-size:14px;font-weight:700}
+.theater .ck{width:24px;height:24px;border-radius:12px;background:var(--yellow);display:none;align-items:center;justify-content:center}
+.theater .ck .ms{font-size:16px}
+.theater .chev{font-size:20px;color:var(--g99)}
+.theater.is-sel{background:var(--sel);border:2px solid var(--yellow);box-shadow:none}
+.theater.is-sel .dist{color:#472e1e}.theater.is-sel .ck{display:flex}.theater.is-sel .chev{display:none}
+.selbar{position:absolute;left:0;right:0;bottom:0;height:137px;background:rgba(242,242,242,.96);border-top:1px solid var(--line);box-shadow:0 -7px 30px rgba(0,0,0,.15);backdrop-filter:blur(8px);z-index:5}
+.selbar .row{position:absolute;left:24px;right:24px;top:16px;height:18px;display:flex;justify-content:space-between;align-items:center}
+.selbar .cta{position:absolute;left:24px;right:24px;top:54px}
+
+/* ================= 02 SHOWTIME ================= */
+#showtime .sheet{height:790px}
+.dates{position:absolute;left:16px;top:13px;height:97px;display:flex;gap:8px;align-items:center;font-weight:700}
+.date{width:64px;height:80px;border-radius:24px;background:#fff;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:2px solid transparent;transition:all .15s}
+.date .w{font-size:12px}.date .d{font-size:19px}.date .m{font-size:11px;display:none}
+.date.is-sel{width:68px;height:82px;background:var(--sel);border-color:var(--yellow);color:#000}
+.date.is-sel .w{font-size:11px}.date.is-sel .d{font-size:22px}.date.is-sel .m{display:block}
+.carousel{position:absolute;left:0;right:0;top:140px;display:flex;gap:12px;align-items:flex-start;padding:4px 45px 16px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+.carousel::-webkit-scrollbar{display:none}
+.mcard{flex:none;width:300px;border-radius:28px;background:#fff;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:14px;scroll-snap-align:center;transform:scale(.9);transform-origin:top center;opacity:.45;transition:transform .25s ease,opacity .25s ease}
+.mcard.is-active{transform:none;opacity:1}
+.mcard .top{display:flex;gap:16px;align-items:center}
+.poster{position:relative;width:96px;height:136px;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);flex:none;padding:8px}
+.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.age{position:relative;width:24px;height:24px;border-radius:12px;background:#fbbf24;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--ink2)}
+.mcard .info{flex:1;min-width:0;min-height:144px;display:flex;flex-direction:column;gap:6px}
+.mcard .rk{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.mcard .rk .chip{font-size:11px;padding:2px 10px}
+.mcard .gn{font-size:12px;font-weight:500;color:var(--g5b)}
+.mcard h3{font-size:19px;font-weight:700;letter-spacing:-.38px;color:var(--ink2)}
+.mcard .tl{font-size:13px;color:var(--g5b);overflow:hidden;text-overflow:ellipsis}
+.mcard .tags{display:flex;flex-wrap:wrap;gap:6px;padding-top:4px;margin-top:auto}
+.mcard .tags .chip{font-size:11px;font-weight:500;padding:2px 10px}
+.mcard .sh{display:flex;gap:8px;align-items:center;font-size:16px;font-weight:700;color:var(--ink2)}
+.mcard .sh i{width:10px;height:10px;border-radius:50%;background:var(--yellow)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.mcard .grid2{margin-top:24px}
+.st{border-radius:22px;background:#fff;box-shadow:var(--shadow);padding:14px;display:flex;flex-direction:column;gap:6px;text-align:left}
+.st .t{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.st .t .chip{flex:none}
+.st .t b{font-size:20px;font-weight:700;letter-spacing:-.4px;color:var(--ink2)}
+.st .t .chip.hot{background:#fef3c7;color:#78350f}
+.st .m{display:flex;justify-content:space-between;align-items:center;padding-top:4px;font-size:12px}
+.st .m span{font-weight:500;color:var(--g5b)}.st .m em{font-style:normal;font-weight:700;color:var(--ink2)}.st .m em.warn{color:#b45309}
+.st .h{font-size:11px;color:rgba(91,91,91,.8)}
+.st.is-sel{background:var(--sel);border:2px solid var(--yellow)}
+.st.is-sel .t b,.st.is-sel .m span,.st.is-sel .m em,.st.is-sel .h{color:#000}
+.st.is-sel .t .chip{background:var(--yellow);color:#000}
+.dots{position:absolute;left:0;right:0;top:601px;display:flex;justify-content:center;gap:6px}
+.dots i{width:6px;height:6px;border-radius:3px;background:#d5d5d5;transition:all .2s}
+.dots i.on{width:20px;background:#26251e}
+.summary{}
+.summary .box{border-radius:26px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.summary .row{display:flex;justify-content:space-between;align-items:center}
+.summary .l{display:flex;gap:10px;align-items:center}
+.summary .tm{background:var(--sel);border:1px solid var(--yellow);border-radius:8px;padding:2px 8px;font-size:16px;font-weight:700;color:#713f12}
+.summary .price{text-align:right}
+.summary .price small{font-size:11px;color:var(--g5b);display:block}
+.summary .price b{font-size:18px}.summary .price span{font-size:12px;color:var(--g5b);margin-left:2px}
+
+/* bottom sheet */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .3s;z-index:20}
+.bsheet{position:absolute;left:0;right:0;bottom:0;height:746px;background:var(--bg);border-radius:32px 32px 0 0;box-shadow:var(--shadow);transform:translateY(100%);transition:transform .38s cubic-bezier(.2,.8,.2,1);z-index:21;overflow:hidden}
+#showtime.sheet-open .dim{opacity:1;pointer-events:auto}
+#showtime.sheet-open .bsheet{transform:none}
+.bsheet .handle{position:absolute;left:175px;top:10px;width:40px;height:5px;border-radius:3px;background:#cecece}
+.bsheet .bh{position:absolute;left:20px;right:20px;top:31px;height:35px;display:flex;justify-content:space-between;align-items:flex-start}
+.bsheet .bh .ttl{text-align:center}
+.bsheet .bh .ttl{padding-top:8px}.bsheet .bh .ttl b{font-size:16px;display:block}.bsheet .bh .ttl small{font-size:12px;color:var(--g72);display:block;margin-top:12px}
+.bsheet .x{width:32px;height:32px;border-radius:16px;background:#e6e6e6;display:flex;align-items:center;justify-content:center}
+.bsheet .x .ms{font-size:18px}
+.bsheet .scrtxt{position:absolute;left:0;right:0;top:117px;text-align:center;font-size:10px;font-weight:500;color:var(--g99)}
+.seats{position:absolute;left:48px;top:138px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.srow{display:flex;gap:18px}
+.sgrp{display:flex;gap:6px;width:138px}
+.sgrp.r{justify-content:flex-end}
+.seat{width:30px;height:26px;border-radius:7px;background:#fff;border:1px solid #e2e2e2;font-size:9px;font-weight:500;color:var(--g99);display:flex;align-items:center;justify-content:center;transition:all .12s}
+.seat.taken{background:#e1e1e1;border-color:#e1e1e1;color:#8e8e8e;font-weight:700;cursor:not-allowed}
+.seat.is-sel{background:var(--yellow);border-color:var(--yellow);color:var(--ink);font-weight:700}
+.legend{position:absolute;top:357px;left:50%;transform:translateX(-50%);display:flex;gap:16px;align-items:center;padding:8px 20px;border-radius:99px;border:1px solid #c9c9c9}
+.legend div{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:500;color:var(--g72)}
+.legend i{width:14px;height:14px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.aud{position:absolute;left:0;right:0;top:409px;height:339px;background:#fff;border-radius:32px 32px 0 0;box-shadow:var(--shadow);padding:24px 20px}
+.aud .hd{display:flex;justify-content:space-between;align-items:center}
+.aud .hd b{font-size:16px}.aud .hd small{font-size:12px;font-weight:500;color:var(--g72)}
+.types{display:flex;gap:8px;margin-top:22px}
+.type{flex:1;height:40px;border-radius:14px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:var(--g72);border:2px solid transparent}
+.type.is-sel{background:var(--sel);border-color:var(--yellow);color:var(--ink);font-weight:700}
+.counts{display:flex;justify-content:space-between;margin-top:21px}
+.cnt{width:56px;height:88px;border-radius:28px;background:var(--chip);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:12px 0 8px;font-size:11px;font-weight:500;color:var(--g99)}
+.cnt b{width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--g72)}
+.cnt.is-sel{background:var(--yellow-soft);color:var(--ink)}
+.cnt.is-sel b{background:#fff;color:var(--ink)}
+.aud .pay{position:absolute;left:20px;right:20px;top:237px;height:56px;display:flex;align-items:center;gap:12px}
+.aud .pay .amt small{font-size:12px;font-weight:500;color:var(--g72);display:block}
+.aud .pay .amt b{font-size:22px}.aud .pay .amt span{font-size:13px;font-weight:700;margin-left:2px}
+.aud .pay .cta{flex:1}
+
+/* ================= 04 PAYMENT ================= */
+#payment .sheet{padding:20px 16px 137px}
+.ckcard{border-radius:32px;padding:24px;display:flex;flex-direction:column;gap:24px}
+.step{display:flex;gap:10px;align-items:center;font-size:15px;font-weight:700;color:var(--ink2)}
+.step i{width:24px;height:24px;border-radius:12px;background:var(--yellow);font-style:normal;font-size:12px;display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.tsum{background:#ededed;border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:4px;overflow:hidden}
+.tsum .row{display:flex;gap:16px;align-items:center}
+.tsum .poster{width:100px;height:144px}
+.imax{position:relative;display:inline-block;background:#000;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;letter-spacing:.8px}
+.tsum .c{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.tsum .br{align-self:flex-start;background:#fff;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:700;display:flex;gap:6px}
+.tsum .br i{font-style:normal;color:#d4d4d4}
+.tsum h3{font-size:22px;letter-spacing:-.44px}
+.tsum .ln{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;font-weight:500;color:var(--g72)}
+.tsum .ln .ms{font-size:18px;color:#000}.tsum .ln strong{font-size:14px;color:#000}
+.perf{position:relative;height:32px;display:flex;align-items:center}
+.perf hr{flex:1;border:0;border-top:2px dashed #d5d5d5}
+.perf::before,.perf::after{content:'';position:absolute;top:0;width:24px;height:32px;border-radius:16px;background:#fff}
+.perf::before{left:-32px}.perf::after{right:-32px}
+.total{background:#fff;border-radius:16px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.total span{font-size:14px;color:var(--g72)}.total b{font-size:24px;letter-spacing:-.48px}
+.pm-hd{display:flex;justify-content:space-between;align-items:center;padding:0 4px}
+.pm-hd b{font-size:16px;color:var(--ink2)}.pm-hd small{font-size:12px;font-weight:500;color:var(--g72)}
+.pms{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.pm{border-radius:24px;padding:20px;display:flex;justify-content:space-between;align-items:center;background:#fff;box-shadow:var(--shadow);text-align:left}
+.pm .l{display:flex;gap:16px;align-items:center}
+.pm .l .lt{width:48px;height:48px}.pm .l .lt .ms{font-size:26px}
+.pm h4{font-size:15px;font-weight:700;color:var(--ink2);display:flex;gap:8px;align-items:center}
+.pm h4 .rec{background:var(--yellow-soft);color:#713f12;font-size:11px;padding:2px 10px;border-radius:99px}
+.pm small{font-size:12px;color:var(--g72)}
+.pm .ck{width:32px;height:32px;border-radius:16px;border:7px solid var(--chip);display:flex;align-items:center;justify-content:center}
+.pm .ck .ms{display:none;font-size:19px}
+.pm.is-sel{background:var(--sel);border:2px solid var(--yellow)}
+.pm.is-sel .ck,.pm.chk .ck{border:0;background:var(--yellow)}.pm.is-sel .ck .ms,.pm.chk .ck .ms{display:block}
+.ckbar{position:absolute;left:0;right:0;bottom:0;height:97px;background:rgba(242,242,242,.96);border-top:1px solid var(--line);box-shadow:0 -7px 30px rgba(0,0,0,.15);display:flex;justify-content:space-between;align-items:center;padding:0 24px 8px;z-index:5;backdrop-filter:blur(8px)}
+.ckbar small{font-size:12px;font-weight:500;color:var(--g72);display:block}
+.ckbar b{font-size:24px;letter-spacing:-.48px}.ckbar span{font-size:14px;font-weight:700;margin-left:4px}
+.ckbar .cta{width:212px}
+
+/* ================= 06 FIND ================= */
+#find .sheet{height:875px}
+.mode{position:absolute;left:16px;right:16px;height:52px;border-radius:99px;display:flex;gap:8px;align-items:center;justify-content:center;background:#fff;border:2px solid #e0e0e0;box-shadow:var(--shadow);font-size:14px;font-weight:700;color:var(--g40)}
+.mode .ms{font-size:18px;color:var(--g73)}
+.mode.is-sel{background:var(--sel);border-color:var(--yellow);color:#000}.mode.is-sel .ms{color:#000}
+.scanner{position:absolute;left:16px;right:16px;top:172px;height:363px;border-radius:28px;border:3px solid #ffd600;box-shadow:var(--shadow);overflow:hidden;background:linear-gradient(to top,rgba(255,235,88,.34),rgba(244,244,237,.31) 74.5%,rgba(244,244,237,.36))}
+.scanner .glow{position:absolute;left:-51px;bottom:-51px;width:144px;height:144px;border-radius:50%;background:rgba(255,251,219,1);filter:blur(30px)}
+.vf{position:absolute;left:64px;top:29px;width:224px;height:224px}
+.vf i{position:absolute;width:28px;height:28px;border:0 solid var(--yellow)}
+.vf i:nth-child(1){left:0;top:0;border-left-width:3.5px;border-top-width:3.5px;border-top-left-radius:12px}
+.vf i:nth-child(2){right:0;top:0;border-right-width:3.5px;border-top-width:3.5px;border-top-right-radius:12px}
+.vf i:nth-child(3){left:0;bottom:0;border-left-width:3.5px;border-bottom-width:3.5px;border-bottom-left-radius:12px}
+.vf i:nth-child(4){right:0;bottom:0;border-right-width:3.5px;border-bottom-width:3.5px;border-bottom-right-radius:12px}
+.vf .bc{position:absolute;left:50%;top:65px;transform:translateX(-50%);width:64px;height:64px;border-radius:16px;background:#fff9cd;border:2px solid var(--yellow);display:flex;align-items:center;justify-content:center}
+.vf .bc .ms{font-size:36px;color:var(--brown)}
+.vf p{position:absolute;left:0;right:0;top:140.5px;text-align:center;font-size:16px;font-weight:700;color:#000}
+.scanner .cap{position:absolute;left:0;right:0;top:273px;text-align:center;font-size:12px;font-weight:500;color:var(--ga3)}
+.scanner .on{position:absolute;left:21px;right:21px;top:307px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1);display:flex;gap:6px;justify-content:center;align-items:center;color:var(--ga3);font-size:12px;font-weight:900}
+.scanner .on .ms{font-size:16px}
+.keyin{position:absolute;left:16px;right:16px;top:172px;height:363px;border-radius:28px;background:#fff;box-shadow:var(--shadow);padding:20px;display:none;flex-direction:column;gap:12px}
+#find.m-key .scanner{display:none}#find.m-key .keyin{display:flex}
+.keyin .disp{height:56px;border-radius:16px;background:#f5f5f5;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:20px;font-weight:700;letter-spacing:2px}
+.keyin .disp small{font-size:12px;font-weight:500;color:var(--g99);letter-spacing:0}
+.infocard{position:absolute;left:16px;right:16px;top:595px;height:91px;border-radius:20px;background:rgba(255,255,255,.69);border:1px solid #c6c6c6;padding:16px;display:flex;gap:12px}
+.infocard .lt{width:40px;height:40px;border-radius:20px}.infocard .lt .ms{font-size:22px}
+.infocard b{font-size:14px;color:var(--ink2);display:block}
+.infocard p{white-space:normal;word-break:break-all;font-size:12px;line-height:18px;color:var(--g73);margin-top:4px}
+#find .dock .tabbar{height:65px}
+
+/* ================= 07-1 ISSUED ================= */
+#issued .sheet{height:813px}
+.done{position:absolute;left:34px;top:44px;display:flex;gap:18px}
+.done .lt{width:48px;height:48px;box-shadow:var(--shadow)}.done .lt .ms{font-size:28px}
+.done b{font-size:20px;color:var(--ink2);display:block}.done p{font-size:14px;color:var(--g52);margin-top:2px}
+.reprint{position:absolute;left:0;right:0;top:147px;text-align:center;font-size:14px;font-weight:500;color:var(--g73)}
+.tcard{position:absolute;left:20px;right:20px;top:180px;border-radius:28px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.tcard .row{display:flex;justify-content:space-between;align-items:flex-start}
+.tcard .badge{display:inline-flex;gap:6px;align-items:center;background:var(--yellow);border-radius:99px;padding:4px 12px;font-size:13px;font-weight:700;color:var(--ink2)}
+.tcard .badge .ms{font-size:16px}
+.tcard h3{margin-top:10px;font-size:22px;color:var(--ink2)}.tcard h3 span{font-size:14px;font-weight:500;color:#57575b}
+.tcard .pimg{width:48px;height:68px;border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+.tcard .pimg img{width:100%;height:100%;object-fit:cover}
+.det{background:var(--chip);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.det .r{display:flex;justify-content:space-between;font-size:13px}
+.det .r span{color:var(--g52)}.det .r b{font-weight:500;color:var(--ink2)}.det .r b.bb{font-weight:700}
+.det hr{border:0;border-top:1px solid #d5d5d5}
+.notice{background:var(--chip);border-radius:16px;padding:12px 16px;display:flex;gap:8px;align-items:center;font-size:13px;color:var(--g40)}
+.notice .ms{font-size:18px;color:var(--ink2)}.notice u{font-weight:700;color:var(--ink2)}
+.pcard{position:absolute;left:20px;right:20px;top:485px;height:91px;border-radius:28px;padding:20px;display:flex;justify-content:space-between;align-items:center}
+.pcard .pp{margin-right:14px}
+.pcard .pp{width:48px;height:48px;border-radius:16px;background:var(--yellow-soft);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex:none}
+.pcard .c{flex:1;min-width:0}
+.pcard .c .t{display:flex;gap:8px;align-items:center}.pcard .c .t b{font-size:16px}
+.pcard .c .t i{font-style:normal;background:var(--sel);border:1px solid var(--yellow-soft);border-radius:99px;padding:2px 8px;font-size:11px;font-weight:700;color:#713f12}
+.pcard .c p{white-space:normal;word-break:break-all;font-size:12px;color:var(--g72);margin-top:4px}
+.pcard .go{width:36px;height:36px;border-radius:18px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;flex:none}
+.ocard{position:absolute;left:20px;right:20px;top:592px;height:84px;border-radius:28px;padding:20px;display:flex;justify-content:space-between;align-items:center}
+.ocard .l{display:flex;gap:14px;align-items:center}.ocard .lt{width:44px;height:44px}.ocard .lt .ms{font-size:24px}
+.ocard b{font-size:14px;display:block}.ocard small{font-size:12px;color:var(--g72)}
+.led{display:flex;gap:6px;align-items:center;background:#eff6ff;border:1px solid #bfdbfe;box-shadow:var(--shadow);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:700;color:#1d4ed8;box-shadow:var(--shadow)}
+.led i{width:8px;height:8px;border-radius:50%;background:#3b82f6;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+#issued .dock{padding-left:20px;padding-right:20px}
+#issued .dock .cta .col{display:flex;flex-direction:column}
+
+/* ================= 07-2 PARKING ================= */
+#parking .sheet{height:731px}
+.vt{position:absolute;left:16px;right:16px;top:20px;height:38px;border-radius:16px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.vt .l{display:flex;gap:8px;align-items:center;font-size:12px}
+.vt .l .ms{font-size:18px;color:#4d6600}
+.vt .l b{color:var(--ink3)}.vt .l span{font-weight:500;color:#4d6600}.vt .l small{font-size:11px;color:var(--g73)}
+.vt .tk{background:var(--line);border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;color:#262626}
+.ptitle{position:absolute;left:20px;right:20px;top:86px;display:flex;gap:12px}
+.ptitle .pp{width:44px;height:44px;border-radius:16px;background:var(--yellow-soft);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex:none}
+.ptitle b{font-size:18px;color:var(--ink3);display:block}.ptitle small{font-size:12px;color:var(--g72);letter-spacing:-.4px}
+.skip{position:absolute;left:0;right:0;top:183px;text-align:center;font-size:14px;font-weight:500;color:var(--g73)}
+.plate{position:absolute;left:16px;right:16px;top:215px;border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.plate .hd{display:flex;justify-content:space-between;align-items:center}
+.plate .hd .l{display:flex;gap:6px;align-items:center;font-size:12px;font-weight:700}
+.plate .hd .l .ms{font-size:17px;color:#4d6600}
+.plate .hd small{background:#f5f5f5;border-radius:99px;padding:2px 8px;font-size:11px;font-weight:500;color:var(--g52)}
+.digits{display:flex;gap:12px;padding:4px 0 12px}
+.digit{flex:1;height:64px;border-radius:16px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--ink3);border:2px solid transparent}
+.digit.cur{background:var(--sel);border-color:var(--yellow);color:#000}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.key{height:56px;border-radius:16px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--ink3)}
+.key.fn{background:rgba(229,229,229,.8);font-size:16px;color:#000}
+.key .ms{font-size:24px}
+.regbtn{padding:14px 0;border-radius:16px;background:var(--yellow-soft);display:flex;gap:8px;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--ink3)}
+.regbtn .ms{font-size:22px}
+.toast{position:absolute;left:50%;bottom:110px;transform:translate(-50%,20px);background:rgba(28,25,23,.92);color:#fff;font-size:13px;font-weight:500;padding:12px 18px;border-radius:99px;opacity:0;transition:all .25s;pointer-events:none;z-index:200;white-space:nowrap}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ================= 09 EASY ================= */
+#easy .hdr{padding-top:54px}
+#easy .bpill{padding:6px 14px}
+#easy .sheet{height:1112px}
+.modes{position:absolute;left:16px;right:16px;top:19px;height:66px;display:flex;gap:12px}
+.emode{flex:1;border-radius:24px;padding:12px;display:flex;gap:10px;align-items:center;background:#fff;border:1px solid rgba(0,0,0,.05);box-shadow:var(--shadow);text-align:left}
+.emode .lt{width:40px;height:40px;border-radius:12px}.emode .lt .ms{font-size:24px}
+.emode b{font-size:14px;color:#000;display:block}.emode small{font-size:11px;color:var(--g52)}
+.emode.is-sel{background:var(--sel);border-color:var(--yellow)}.emode.is-sel small{font-weight:700;color:#404c00}
+.ecard{position:absolute;left:16px;right:16px;border-radius:28px;background:#fff;border:1px solid rgba(0,0,0,.05);box-shadow:var(--shadow);padding:24px;display:flex;flex-direction:column;gap:16px}
+.ecard .row{display:flex;justify-content:space-between;align-items:center}
+.ecard .yb{background:#fef9c3;border:1px solid var(--yellow);border-radius:99px;padding:2px 16px;font-size:13px;font-weight:700}
+.ecard .gb{background:#e2e2e2;border-radius:99px;padding:4px 12px;font-size:13px;font-weight:700}
+.ecard h3{font-size:24px;letter-spacing:-.48px;color:#000}
+.ecard .d{font-size:16px;font-weight:500;color:var(--g52);white-space:normal;word-break:break-all;margin-top:4px}
+.bigbtn{height:56px;border-radius:16px;display:flex;gap:8px;align-items:center;justify-content:center;font-size:18px;font-weight:700;box-shadow:var(--shadow)}
+.bigbtn .ms{font-size:24px;color:#434937}
+.tt-hd{position:absolute;left:20px;right:20px;top:628px;display:flex;justify-content:space-between;align-items:baseline}
+.tt-hd b{font-size:18px}.tt-hd small{font-size:13px;font-weight:500;color:var(--g52)}
+.scard{position:absolute;left:16px;right:16px;top:665px;border-radius:28px;background:#fff;border:1px solid rgba(0,0,0,.05);box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:6px}
+.scard .row{display:flex;gap:14px;align-items:center}
+.scard .pimg{width:56px;height:64px;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);flex:none}
+.scard .pimg img{width:100%;height:100%;object-fit:cover}
+.scard .c{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.scard .n{display:flex;gap:8px;align-items:center}
+.scard .n i{font-style:normal;background:#496800;color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px}
+.scard .n b{font-size:18px;color:#141e17}
+.scard .m{display:flex;justify-content:space-between;align-items:center}
+.scard .m .t{font-size:17px;font-weight:700;color:#496800}.scard .m span{font-size:14px;font-weight:500;color:#434937;margin-left:8px}
+.scard .m em{font-style:normal;font-size:14px;font-weight:700;color:#496800}
+.pick{height:56px;border-radius:12px;background:#ecf7eb;display:flex;gap:8px;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#141e17;margin-top:10px}
+.pick .ms{font-size:20px}
+.enav{position:absolute;left:0;right:0;bottom:0;padding:10px 16px 16px;background:var(--bg);border-top:1px solid var(--line);box-shadow:0 -7px 30px rgba(0,0,0,.2);z-index:5}
+.enav .tabbar{height:68px;background:rgba(242,242,242,.95);border-color:#c6c6c6}
+.enav .tab{height:54px;justify-content:center;padding:6px 4px}
+.enav .tab .ms{font-size:22px}.enav .tab p{font-size:12px;font-weight:700}
+
+/* ================= 05 SNACK (공통) ================= */
+.snbar{position:absolute;left:0;right:0;bottom:0;height:89px;background:rgba(242,242,242,.96);border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.1);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:12px 20px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;z-index:5}
+.snbar .sum small{font-size:12px;font-weight:500;color:var(--g72);display:flex;gap:6px;align-items:center}
+.snbar .sum small i{width:16px;height:16px;border-radius:8px;background:var(--yellow);font-style:normal;font-size:10px;font-weight:700;color:#000;display:flex;align-items:center;justify-content:center}
+.snbar .sum small i:empty{display:none}
+.snbar .cta.off,.pay .cta.off{opacity:.35}
+.snbar .sum b{font-size:20px;font-weight:700;color:var(--ink2);display:block}
+.snbar .cta{width:223px;flex:none}
+.snimg{position:relative;border-radius:12px;overflow:hidden;background:var(--chip)}
+.snimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.snimg img.crop-top{transform:scale(1.14);transform-origin:center bottom}
+
+/* ================= 05-1 SNACK MENU ================= */
+#snack .sheet{padding:24px 16px 113px;display:flex;flex-direction:column;gap:14px}
+.cats{display:flex;gap:8px;margin:0 -16px;padding:0 16px 2px}
+.cat{flex:none;padding:10px 16px;border-radius:99px;background:#fff;border:2px solid transparent;box-shadow:var(--shadow);font-size:13px;font-weight:500;color:var(--ink2)}
+.cat.is-sel{background:var(--sel);border-color:var(--yellow);font-weight:700;color:#000}
+.combo{border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.combo .snimg{height:160px}
+.combo .snimg em{position:absolute;right:10px;bottom:10px;font-style:normal;background:rgba(255,255,255,.9);border-radius:99px;padding:2px 10px;font-size:11px;font-weight:700;color:var(--ink2);box-shadow:var(--shadow)}
+.combo .row{display:flex;justify-content:space-between;align-items:flex-start}
+.combo h3{font-size:17px;font-weight:700;color:var(--ink2)}
+.combo .d{font-size:12px;font-weight:500;color:var(--g72);margin-top:2px}
+.combo .pr{font-size:19px;font-weight:700;color:var(--ink2)}
+.combo .act{display:flex;gap:8px;align-items:center}
+.stepper{display:flex;align-items:center;padding:4px 6px;border-radius:99px;background:var(--chip);flex:none}
+.stepper button{width:28px;height:28px;border-radius:14px;background:#fff;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center}
+.stepper button .ms{font-size:16px;color:var(--ink2)}
+.stepper b{width:32px;text-align:center;font-size:15px;color:var(--ink2)}
+.addbtn{display:flex;gap:4px;align-items:center;justify-content:center;border-radius:99px;background:var(--chip);color:var(--ink2);font-weight:700}
+.combo .addbtn{flex:1;height:40px;font-size:13px;gap:6px}.combo .addbtn .ms{font-size:18px}
+.pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.prod{border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.prod .snimg{aspect-ratio:1/1}
+.prod h4{font-size:15px;font-weight:700;color:var(--ink2)}
+.prod .d{font-size:11px;font-weight:500;color:var(--g72);margin-top:2px}
+.prod .pr{font-size:16px;font-weight:700;color:var(--ink2);margin-top:2px}
+.prod .addbtn{height:32px;font-size:12px}.prod .addbtn .ms{font-size:16px}
+
+/* ================= 05-2 SNACK OPTION ================= */
+#snack-option .sheet{padding:28px 20px 113px}
+.selmenu{border-radius:28px;padding:16px;display:flex;gap:14px;align-items:center}
+.selmenu .snimg{width:80px;height:80px;border-radius:16px;flex:none}
+.selmenu .chip{color:#000}
+.selmenu h3{font-size:17px;font-weight:700;color:#000;margin-top:2px}
+.selmenu .d{font-size:12px;font-weight:500;color:var(--g72);margin-top:2px}
+.selmenu .pr{font-size:16px;font-weight:700;color:#000;margin-top:2px}
+.osec{padding-top:36px;display:flex;flex-direction:column;gap:12px}
+.osec .hd{display:flex;justify-content:space-between;align-items:center}
+.osec .hd .l{display:flex;gap:10px;align-items:center}
+.osec .hd .n{width:20px;height:20px;border-radius:10px;background:var(--yellow);font-size:11px;font-weight:700;color:var(--ink);display:flex;align-items:center;justify-content:center}
+.osec .hd b{font-size:16px;color:#000}
+.osec .hd .chip{font-size:11px;color:#3f3f3f}
+.osec .hd small{font-size:12px;font-weight:500;color:var(--g72)}
+.ogrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.opt{border-radius:16px;background:#fff;border:2px solid transparent;box-shadow:var(--shadow);text-align:left;display:flex;justify-content:space-between}
+.opt .ck{width:20px;height:20px;border-radius:10px;background:var(--yellow);display:none;align-items:center;justify-content:center;flex:none}
+.opt .ck .ms{font-size:14px;color:var(--ink)}
+.opt .nm{font-weight:700;color:#000}
+.opt .ad{font-weight:700;color:#838383}
+.opt .tag{font-size:11px;font-weight:500;color:#838383}
+.opt.is-sel{background:var(--sel);border-color:var(--yellow)}
+.opt.is-sel .ck{display:flex}.opt.is-sel .tag{display:none}.opt.is-sel .ad{color:#000}
+.opt.big{height:80px;padding:12px;flex-direction:column}
+.opt.big .top{display:flex;justify-content:space-between;align-items:center;min-height:20px}
+.opt.big .nm{font-size:14px}.opt.big .ad{font-size:13px}
+.opt.sm{height:55px;padding:10px;align-items:center}
+.opt.sm .nm{font-size:13px;display:block}.opt.sm .ad{font-size:11px;display:block;margin-top:2px}
+.ice{border-radius:16px;padding:12px;display:flex;justify-content:space-between;align-items:center}
+.ice > b{font-size:12px;color:#000}
+.ice .chips{display:flex;gap:6px}
+.ice .chips button{height:30px;padding:0 12px;border-radius:99px;background:var(--chip);border:2px solid transparent;font-size:12px;font-weight:500;color:#000}
+.ice .chips button.is-sel{background:var(--sel);border-color:var(--yellow);font-weight:700}
+
+/* ================= 05-3 SNACK PAYMENT ================= */
+#snack-pay .sheet{padding:20px 16px 137px}
+.olist{display:flex;flex-direction:column;gap:14px}
+.oitem{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.oitem b{font-size:14px;color:var(--ink2);display:block}
+.oitem small{font-size:12px;color:var(--g72);display:block;margin-top:3px;white-space:normal;word-break:keep-all;line-height:1.4}
+.oitem .q{text-align:right;flex:none}
+.oitem .q span{font-size:12px;font-weight:500;color:var(--g72);display:block}
+.oitem .q em{font-style:normal;font-size:14px;font-weight:700;color:var(--ink2)}
+</style>
+</head>
+<body>
+
+<aside class="side" id="side">
+  <h1>CINETOUCH</h1>
+  <p class="hint">화면 속 버튼을 눌러 이동하세요. 세로 스크롤, 캐러셀 가로 스와이프, 좌석·인원·결제수단 선택이 동작합니다.</p>
+</aside>
+
+<div class="device">
+<div class="viewport" id="vp">
+  <div class="island"></div>
+  <div class="status"><span>9:41</span>
+    <span class="r">
+      <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2.2c2.4 0 4.6.9 6.2 2.5l1.2-1.2C13.5 1.6 10.9.5 8 .5S2.5 1.6.6 3.5l1.2 1.2C3.4 3.1 5.6 2.2 8 2.2zm0 3.4c1.5 0 2.8.6 3.8 1.5L13 5.9C11.7 4.6 9.9 3.9 8 3.9s-3.7.7-5 2l1.2 1.2c1-.9 2.3-1.5 3.8-1.5zm0 3.4c-.6 0-1.1.2-1.5.6L8 11.1l1.5-1.5c-.4-.4-.9-.6-1.5-.6z"/></svg>
+      <svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="22" height="12" rx="3.5" fill="none" stroke="#000" opacity=".4"/><rect x="2" y="2" width="19" height="9" rx="2"/><path d="M24.5 4.5v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2z" opacity=".5"/></svg>
+    </span>
+  </div>
+  <div class="homebar"></div>
+
+  <!-- ===================== 01 HOME ===================== -->
+  <section class="screen" id="home" data-name="01 홈">
+    <div class="homebg"></div>
+    <img class="logo" src="assets/logo.svg" alt="CINETOUCH">
+    <p class="tagline">특별한 영화와 함께하는 하루</p>
+    <button class="bell tap" data-toast="새 알림이 1건 있어요"><span class="ms">notifications</span><i></i></button>
+
+    <a class="dcard tap" data-go="theater">
+      <img class="decor" src="assets/decor-ticket.svg" alt="">
+      <img class="ticon" src="assets/icon-ticket.svg" alt="">
+      <p class="t1">지금, 극장에서</p>
+      <p class="t2">영화 티켓 예매</p>
+      <p class="t3">최신 상영작과 좌석을 빠르게 선택하세요</p>
+      <div class="pills">
+        <div class="mpill"><span class="th crop"><img src="assets/thumb-cybercity.jpg" alt=""></span><p>사이버시티</p></div>
+        <div class="mpill"><span class="th"><img src="assets/thumb-stellar.jpg" alt=""></span><p>스텔라 런</p></div>
+      </div>
+      <span class="go"><span class="ms b">arrow_forward</span></span>
+    </a>
+
+    <a class="qcard card tap" style="left:24px" data-go="find">
+      <span class="lt" style="width:48px;height:48px"><span class="ms" style="font-size:24px">qr_code_scanner</span></span>
+      <div><h3>티켓 출력</h3><p class="d">예매번호 · QR 스캔</p></div>
+      <div class="lk">조회하기 <span class="ms b">arrow_forward</span></div>
+    </a>
+    <a class="qcard card tap" style="left:202px" data-go="snack">
+      <span class="lt" style="width:48px;height:48px"><img src="assets/icon-snack.svg" width="32" height="32" alt=""></span>
+      <div><h3>매점 주문</h3><p class="d">팝콘 · 음료 스마트오더</p></div>
+      <div class="lk">주문하기 <span class="ms b">arrow_forward</span></div>
+    </a>
+
+    <div class="util card">
+      <button class="tap" data-go="parking"><span class="ms">local_parking</span><p>주차 등록</p></button>
+      <button class="tap" data-toast="English mode (demo)"><span class="ms">language</span><p>English</p></button>
+    </div>
+
+    <nav class="tabbar">
+      <a class="tab"><span class="ms">movie</span><p>현재상영작</p></a>
+      <a class="tab tap" data-go="showtime" data-tr="fade"><span class="ms">calendar_month</span><p>상영시간표</p></a>
+      <a class="tab tap" data-go="find" data-tr="fade"><span class="ms">confirmation_number</span><p>티켓출력</p></a>
+      <a class="tab tap" data-toast="로그인은 준비 중이에요"><span class="ms">person</span><p>로그인</p></a>
+    </nav>
+  </section>
+
+  <!-- ===================== 01-1 THEATER ===================== -->
+  <section class="screen" id="theater" data-name="01-1 영화관 선택">
+    <div class="scroll">
+      <header class="hdr">
+        <button class="cbtn tap" data-back><span class="ms">chevron_left</span></button>
+        <div class="bpill"><span class="ms">location_on</span><p>영화관 선택</p></div>
+        <button class="cbtn tap" data-go="home" data-tr="fade"><span class="ms">home</span></button>
+      </header>
+      <div class="sheet">
+        <div class="search card"><span class="ms">search</span><p>영화관 이름 또는 지역 검색</p></div>
+        <div class="loc card">
+          <div class="l">
+            <span class="lt" style="width:44px;height:44px"><span class="ms" style="font-size:22px">my_location</span></span>
+            <div><p style="font-size:12px;font-weight:500;color:var(--g72)">현재 위치</p><p style="font-size:15px;font-weight:700;margin-top:2px">서울 강남구 역삼동</p></div>
+          </div>
+          <button class="reset tap" data-toast="현재 위치를 다시 찾았어요"><span class="ms">refresh</span>재설정</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding-top:8px">
+          <p style="font-size:16px;font-weight:700">지역 선택</p>
+          <div class="regions hscroll" data-group="region">
+            <button class="region tap is-sel" data-name="서울"><b>서울</b><i>32</i></button>
+            <button class="region tap" data-name="경기"><b>경기</b><i>48</i></button>
+            <button class="region tap" data-name="인천"><b>인천</b><i>12</i></button>
+            <button class="region tap" data-name="강원"><b>강원</b><i>9</i></button>
+            <button class="region tap" data-name="대전/충청"><b>대전/충청</b><i>21</i></button>
+            <button class="region tap" data-name="대구"><b>대구</b><i>11</i></button>
+            <button class="region tap" data-name="부산/울산"><b>부산/울산</b><i>19</i></button>
+            <button class="region tap" data-name="경상"><b>경상</b><i>17</i></button>
+            <button class="region tap" data-name="광주/전라/제주"><b>광주/전라/제주</b><i>20</i></button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 4px 0">
+          <p style="font-size:16px;font-weight:700"><span id="regionName">서울</span> 영화관 <span style="font-size:13px;color:#472e1e;margin-left:4px" id="regionCount">32곳</span></p>
+          <p style="font-size:12px;font-weight:500;color:var(--g72);display:flex;align-items:center;gap:2px">거리순 <span class="ms" style="font-size:16px">expand_more</span></p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px" data-group="theater" id="theaterList"></div>
+      </div>
+    </div>
+    <div class="selbar">
+      <div class="row"><p style="font-size:12px;font-weight:500;color:var(--g72)">선택한 영화관</p>
+        <p style="display:flex;gap:6px;align-items:center;font-size:15px;font-weight:700"><span class="ms" style="font-size:16px;color:#472e1e">location_on</span><span id="theaterName">CGV 강남 플래그십점</span></p></div>
+      <a class="cta tap" data-go="showtime"><p>이 영화관으로 예매하기</p><span class="arw"><span class="ms b">arrow_forward</span></span></a>
+    </div>
+  </section>
+
+  <!-- ===================== 02 SHOWTIME ===================== -->
+  <section class="screen" id="showtime" data-name="02 영화·상영시간 선택">
+    <div class="scroll">
+      <header class="hdr">
+        <button class="cbtn tap" data-back><span class="ms">chevron_left</span></button>
+        <div class="bpill"><span class="ms">confirmation_number</span><p class="js-theater">CGV 강남 플래그십점</p></div>
+        <button class="cbtn tap" data-go="home" data-tr="fade"><span class="ms">home</span></button>
+      </header>
+      <div class="sheet">
+        <div class="dates" data-group="date">
+          <button class="date tap" style="color:#929292"><span class="w">목</span><span class="d" style="color:var(--ink2)">14</span><span class="m">목</span></button>
+          <button class="date tap is-sel"><span class="w">오늘</span><span class="d">15</span><span class="m">금</span></button>
+          <button class="date tap" style="color:var(--ink2)"><span class="w">토</span><span class="d">16</span><span class="m">토</span></button>
+          <button class="date tap" style="color:#f43f5e"><span class="w">일</span><span class="d">17</span><span class="m">일</span></button>
+          <button class="date tap" style="color:#929292"><span class="w">월</span><span class="d" style="color:var(--ink2)">18</span><span class="m">월</span></button>
+        </div>
+        <div class="carousel" id="carousel"></div>
+        <div class="dots" id="dots"><i class="on"></i><i></i><i></i></div>
+      </div>
+      </div>
+      <div class="summary dock">
+        <div class="box card">
+          <div class="row">
+            <div class="l">
+              <span class="lt" style="width:36px;height:36px;border-radius:18px"><span class="ms" style="font-size:22px">check_circle</span></span>
+              <p style="font-size:15px;font-weight:700;color:var(--ink2)" id="sumMovie">야간: Nightfall</p>
+              <span class="tm" id="sumTime">23:30</span>
+            </div>
+            <div class="price"><small>티켓 기준금액</small><b>21,000</b><span>원</span></div>
+          </div>
+          <a class="cta tap" data-action="open-sheet"><p>인원 및 좌석 선택하기</p><span class="arw"><span class="ms b">arrow_forward</span></span></a>
+        </div>
+      </div>
+
+    <div class="dim" data-action="close-sheet"></div>
+    <div class="bsheet">
+      <div class="handle"></div>
+      <div class="bh">
+        <span style="width:32px"></span>
+        <div class="ttl"><b id="shMovie">야간: Nightfall</b><small id="shSub">03.15 (금) 23:30 · IMAX LASER 7관</small></div>
+        <button class="x tap" data-action="close-sheet"><span class="ms">close</span></button>
+      </div>
+      <p class="scrtxt">SCREEN</p>
+      <div class="seats" id="seats"></div>
+      <div class="legend">
+        <div><i style="background:#e1e1e1"></i>선택가능</div>
+        <div style="color:#000;font-weight:700"><i style="background:var(--yellow);box-shadow:var(--shadow)"></i>선택됨</div>
+        <div style="color:#777"><i style="background:#ededed"><span class="ms" style="font-size:9px;color:#a2a2a2">close</span></i>예매완료</div>
+      </div>
+      <div class="aud">
+        <div class="hd"><b>관람 인원</b><small>최대 6명</small></div>
+        <div class="types" data-group="type">
+          <button class="type tap is-sel" data-price="16000">일반</button>
+          <button class="type tap" data-price="13000">청소년</button>
+          <button class="type tap" data-price="10000">경로</button>
+          <button class="type tap" data-price="8000">우대</button>
+        </div>
+        <div class="counts" data-group="count">
+          <button class="cnt tap" data-n="1">인원<b>1</b></button>
+          <button class="cnt tap" data-n="2">인원<b>2</b></button>
+          <button class="cnt tap" data-n="3">인원<b>3</b></button>
+          <button class="cnt tap" data-n="4">인원<b>4</b></button>
+          <button class="cnt tap" data-n="5">인원<b>5</b></button>
+        </div>
+        <div class="pay">
+          <div class="amt"><small>결제 예정</small><b class="js-total">0</b><span>원</span></div>
+          <a class="cta tap off" id="sheetCta" data-action="to-payment"><p>결제하기</p><span class="arw"><span class="ms b">arrow_forward</span></span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 04 PAYMENT ===================== -->
+  <section class="screen" id="payment" data-name="04 결제 수단 선택">
+    <div class="scroll">
+      <header class="hdr">
+        <button class="cbtn tap" data-back><span class="ms">chevron_left</span></button>
+        <div class="bpill"><span class="ms">movie</span><p class="js-theater">CGV 강남 플래그십점</p></div>
+        <button class="cbtn tap" data-go="home" data-tr="fade"><span class="ms">home</span></button>
+      </header>
+      <div class="sheet">
+        <div class="ckcard card">
+          <div class="step"><i>4</i>마지막 단계: 결제 수단 선택</div>
+          <div class="tsum">
+            <div class="row">
+              <div class="poster" style="width:100px;height:144px"><img src="assets/poster-dune.jpg" alt=""><span class="imax">IMAX</span></div>
+              <div class="c">
+                <div class="br">강남 플래그십점<i>•</i>2관</div>
+                <h3>듄: 파트 2</h3>
+                <div class="ln"><span class="ms">schedule</span>2025. 03. 15 (토) 14:20</div>
+                <div class="ln"><span class="ms">airline_seat_recline_extra</span><strong class="js-seats">F열 7번, 8번</strong><span class="js-seatcnt">(일반 2석)</span></div>
+              </div>
+            </div>
+            <div class="perf"><hr></div>
+            <div class="total"><span class="js-cnt">예매 총 금액 (2매)</span><b><span class="js-total" style="font-size:inherit;color:inherit;margin:0">32,000</span>원</b></div>
+          </div>
+          <div style="margin-top:36px">
+            <div class="pm-hd"><b>결제 수단 선택</b><small>원하시는 방식을 터치하세요</small></div>
+            <div class="pms" data-group="pay">
+              <button class="pm tap chk"><div class="l"><span class="lt"><span class="ms">credit_card</span></span><div><h4>신용 / 체크카드<span class="rec">추천</span></h4><small>IC카드 꽂기 • 삼성페이 • 애플페이</small></div></div><span class="ck"><span class="ms b">check</span></span></button>
+              <button class="pm tap"><div class="l"><span class="lt"><span class="ms">qr_code_scanner</span></span><div><h4>간편결제 (QR / 바코드)</h4><small>카카오페이 • 네이버페이 • 토스</small></div></div><span class="ck"><span class="ms b">check</span></span></button>
+              <button class="pm tap is-sel"><div class="l"><span class="lt"><span class="ms">confirmation_number</span></span><div><h4>모바일 관람권 / 기프티콘</h4><small>바코드를 리더기에 인식해주세요</small></div></div><span class="ck"><span class="ms b">check</span></span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ckbar">
+      <div><small>최종 결제 금액</small><b class="js-total">0</b><span>원</span></div>
+      <a class="cta tap" data-go="issued"><p>결제하기</p><span class="arw"><span class="ms b">arrow_forward</span></span></a>
+    </div>
+  </section>
+
+  <!-- ===================== 05-1 SNACK MENU ===================== -->
+  <section class="screen" id="snack" data-name="05-1 매점 메뉴">
+    <div class="scroll">
+      <header class="hdr">
+        <button class="cbtn tap" data-back><span class="ms">chevron_left</span></button>
+        <div class="bpill"><span class="ms">movie</span><p class="js-theater">CGV 강남 플래그십점</p></div>
+        <button class="cbtn tap" data-go="home" data-tr="fade"><span class="ms">home</span></button>
+      </header>
+      <div class="sheet">
+        <div class="cats hscroll" data-group="cat">
+          <button class="cat tap is-sel">콤보</button>
+          <button class="cat tap">팝콘 단품</button>
+          <button class="cat tap">음료 &amp; 스낵</button>
+          <button class="cat tap">굿즈</button>
+        </div>
+        <div class="combo card">
+          <div class="snimg"><img src="assets/snack-combo.jpg" alt=""><em>맛/음료 변경 가능</em></div>
+          <div class="row">
+            <div><h3>시그니처 CGV 콤보</h3><p class="d">고소팝콘(L) 1개 + 탄산음료(M) 2개</p></div>
+            <p class="pr">11,000원</p>
+          </div>
+          <div class="act">
+            <div class="stepper">
+              <button class="tap" data-action="combo-minus" aria-label="수량 빼기"><span class="ms">remove</span></button>
+              <b id="comboQty">1</b>
+              <button class="tap" data-action="combo-plus" aria-label="수량 더하기"><span class="ms">add</span></button>
+            </div>
+            <button class="addbtn tap" data-action="add" data-item="combo"><span class="ms">add_shopping_cart</span>담기</button>
+          </div>
+        </div>
+        <div class="pgrid">
+          <div class="prod card">
+            <div class="snimg"><img src="assets/snack-caramel.jpg" alt=""></div>
+            <div><h4>더블 카라멜 팝콘</h4><p class="d">달콤 바삭 카라멜 팝콘</p><p class="pr">7,500원</p></div>
+            <button class="addbtn tap" data-action="add" data-item="caramel"><span class="ms">add</span>담기</button>
+          </div>
+          <div class="prod card">
+            <div class="snimg"><img src="assets/snack-nacho.jpg" alt=""></div>
+            <div><h4>치즈볼 &amp; 나초 세트</h4><p class="d">체다치즈 소스 포함</p><p class="pr">8,500원</p></div>
+            <button class="addbtn tap" data-action="add" data-item="nacho"><span class="ms">add</span>담기</button>
+          </div>
+          <div class="prod card">
+            <div class="snimg"><img src="assets/snack-hotdog.jpg" alt=""></div>
+            <div><h4>칠리치즈 핫도그</h4><p class="d">든든한 핫도그</p><p class="pr">5,500원</p></div>
+            <button class="addbtn tap" data-action="add" data-item="hotdog"><span class="ms">add</span>담기</button>
+          </div>
+          <div class="prod card">
+            <div class="snimg"><img class="crop-top" src="assets/snack-drink.jpg" alt=""></div>
+            <div><h4>탄산음료 / 에이드</h4><p class="d">시원한 음료</p><p class="pr">3,500원~</p></div>
+            <button class="addbtn tap" data-action="add" data-item="drink"><span class="ms">add</span>담기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="snbar">
+      <div class="sum"><small><i id="cartCount"></i><span id="cartLabel">담은 메뉴 없음</span></small><b id="cartTotal">0원</b></div>
+      <a class="cta tap off" id="cartCta" data-action="to-option"><p>옵션 선택 및 주문하기</p><span class="arw"><span class="ms b">arrow_forward</span></span></a>
+    </div>
+  </section>
+
+  <!-- ===================== 05-2 SNACK OPTION ===================== -->
+  <section class="screen" id="snack-option" data-name="05-2 매점 옵션 선택">
+    <div class="scroll">
+      <header class="hdr">
+        <button class="cbtn tap" data-back><span class="ms">chevron_left</span></button>
+        <div class="bpill"><span class="ms">movie</span><p class="js-theater">CGV 강남 플래그십점</p></div>
+        <button class="cbtn tap" data-go="home" data-tr="fade"><span class="ms">home</span></button>
+      </header>
+      <div class="sheet">
+        <div class="selmenu card">
+          <div class="snimg"><img src="assets/snack-combo.jpg" alt=""></div>
+          <div><span class="chip">선택 메뉴</span><h3>시그니처 CGV 콤보</h3><p class="d">기본구성: 고소팝콘(L) 1개 + 음료(M) 2개</p><p class="pr">11,000원</p></div>
+        </div>
+
+        <div class="osec">
+          <div class="hd"><div class="l"><span class="n">1</span><b>팝콘 맛 선택</b><span class="chip">필수 1개</span></div><small>L 사이즈</small></div>
+          <div class="ogrid" data-group="opt-pop">
+            <button class="opt big tap" data-add="0"><div class="top"><span class="nm">고소한맛</span><span class="tag">기본</span><span class="ck"><span class="ms b">check</span></span></div><span class="ad">+0원</span></button>
+            <button class="opt big tap is-sel" data-add="1000"><div class="top"><span class="nm">달콤한맛</span><span class="ck"><span class="ms b">check</span></span></div><span class="ad">+1,000원</span></button>
+            <button class="opt big tap" data-add="1000"><div class="top"><span class="nm">바질어니언</span><span class="ck"><span class="ms b">check</span></span></div><span class="ad">+1,000원</span></button>
+            <button class="opt big tap" data-add="1000"><div class="top"><span class="nm">더블치즈</span><span class="ck"><span class="ms b">check</span></span></div><span class="ad">+1,000원</span></button>
+          </div>
+        </div>
+
+        <div class="osec">
+          <div class="hd"><div class="l"><span class="n">2</span><b>음료 1 선택</b><span class="chip">필수 1개</span></div><small>M 사이즈</small></div>
+          <div class="ogrid" data-group="opt-d1">
+            <button class="opt sm tap" data-add="0"><div><span class="nm">콜라(M)</span><span class="ad">+0원</span></div><span class="ck"><span class="ms b">check</span></span></button>
+            <button class="opt sm tap is-sel" data-add="0"><div><span class="nm">제로콜라(M)</span><span class="ad">+0원</span></div><span class="ck"><span class="ms b">check</span></span></button>
+            <button class="opt sm tap" data-add="0"><div><span class="nm">스프라이트(M)</span><span class="ad">+0원</span></div><span class="ck"><span class="ms b">check</span></span></button>
+            <button class="opt sm tap" data-add="1500"><div><span class="nm">오렌지에이드</span><span class="ad">+1,500원</span></div><span class="ck"><span class="ms b">check</span></span></button>
+          </div>
+          <div class="ice card">
+            <b>얼음 양</b>
+            <div class="chips" data-group="ice">
+              <button class="tap is-sel">얼음 보통</button>
+              <button class="tap">얼음 적게</button>
+              <button class="tap">얼음 없음</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="osec">
+          <div class="hd"><div class="l"><span class="n">3</span><b>음료 2 선택</b><span class="chip">필수 1개</span></div><small>M 사이즈</small></div>
+          <div class="ogrid" data-group="opt-d2">
+            <button class="opt sm tap is-sel" data-add="0"><div><span class="nm">스프라이트(M)</span><span class="ad">+0원</span></div><span class="ck"><span class="ms b">check</span></span></button>
+            <button class="opt sm tap" data-add="0"><div><span class="nm">콜라(M)</span><span class="ad">+0원</span></div><span class="ck"><span class="ms b">check</span></span></button>
+            <button class="opt sm tap" data-add="0"><div><span class="nm">환타 오렌지(M)</span><span class="ad">+0원</span></div><span class="ck"><span class="ms b">check</span></span></button>
+            <button class="opt sm tap" data-add="1500"><div><span class="nm">자몽에이드</span><span class="ad">+1,500원</span></div><span class="ck"><span class="ms b">check</span></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="snbar">
+      <div class="sum"><small id="optLabel">총 2개 · 옵션 +1,000원</small><b id="optTotal">19,500원</b></div>
+      <a class="cta tap" data-action="to-snack-pay"><p>장바구니 담기 및 결제</p><span class="arw"><span class="ms b">arrow_forward</span></span></a>
+    </div>
+  </section>
+
+  <!-- ===================== 05-3 SNACK PAYMENT ===================== -->
+  <section class="screen" id="snack-pay" data-name="05-3 매점 결제 수단 선택">
+    <div class="scroll">
+      <header class="hdr">
+        <button class="cbtn tap" data-back><span class="ms">chevron_left</span></button>
+        <div class="bpill"><span class="ms">movie</span><p class="js-theater">CGV 강남 플래그십점</p></div>
+        <button class="cbtn tap" data-go="home" data-tr="fade"><span class="ms">home</span></button>
+      </header>
+      <div class="sheet">
+        <div class="ckcard card">
+          <div class="step"><i>3</i>마지막 단계: 결제 수단 선택</div>
+          <div class="tsum">
+            <div class="olist" id="snackOrder"></div>
+            <div class="perf"><hr></div>
+            <div class="total"><span id="snackPayCnt">주문 총 금액 (2개)</span><b id="snackPayTotal">19,500원</b></div>
+          </div>
+          <div style="margin-top:36px">
+            <div class="pm-hd"><b>결제 수단 선택</b><small>원하시는 방식을 터치하세요</small></div>
+            <div class="pms" data-group="snackpay">
+              <button class="pm tap is-sel"><div class="l"><span class="lt"><span class="ms">credit_card</span></span><div><h4>신용 / 체크카드</h4><small>IC카드 꽂기 • 삼성페이 • 애플페이</small></div></div><span class="ck"><span class="ms b">check</span></span></button>
+              <button class="pm tap"><div class="l"><span class="lt"><span class="ms">qr_code_scanner</span></span><div><h4>간편결제 (QR / 바코드)</h4><small>카카오페이 • 네이버페이 • 토스</small></div></div><span class="ck"><span class="ms b">check</span></span></button>
+              <button class="pm tap"><div class="l"><span class="lt"><span class="ms">confirmation_number</span></span><div><h4>모바일 교환권 / 기프티콘</h4><small>바코드를 리더기에 인식해주세요</small></div></div><span class="ck"><span class="ms b">check</span></span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ckbar">
+      <div><small>최종 결제 금액</small><b id="snackPayBar">19,500</b><span>원</span></div>
+      <a class="cta tap" data-action="snack-order"><p>결제하기</p><span class="arw"><span class="ms b">arrow_forward</span></span></a>
+    </div>
+  </section>
+
+  <!-- ===================== 06 FIND ===================== -->
+  <section class="screen" id="find" data-name="06 예매 티켓 찾기">
+    <div class="scroll">
+      <header class="hdr">
+        <button class="cbtn tap" data-back><span class="ms">chevron_left</span></button>
+        <div class="bpill"><span class="ms">movie</span><p class="js-theater">CGV 강남 플래그십점</p></div>
+        <button class="cbtn tap" data-go="home" data-tr="fade"><span class="ms">home</span></button>
+      </header>
+      <div class="sheet">
+        <button class="mode tap is-sel" style="top:36px" data-mode="scan"><span class="ms">qr_code_scanner</span>QR / 바코드 스캔</button>
+        <button class="mode tap" style="top:104px" data-mode="key"><span class="ms">dialpad</span>예매번호 직접 입력</button>
+        <div class="scanner">
+          <div class="glow"></div>
+          <div class="vf"><i></i><i></i><i></i><i></i>
+            <div class="bc"><span class="ms">barcode_scanner</span></div>
+            <p>바코드를 비춰주세요</p>
+          </div>
+          <p class="cap">화면 하단 스캐너 에 바코드를 비춰주세요</p>
+          <div class="on"><span class="ms b">arrow_downward</span>키오스크 하부 스캐너 ON</div>
+        </div>
+        <div class="keyin">
+          <div class="disp"><span id="bookNo">_ _ _ _ _ _</span><small>예매번호 6자리</small></div>
+          <div class="keys" id="bookKeys"></div>
+        </div>
+        <div class="infocard">
+          <span class="lt"><span class="ms">chat</span></span>
+          <div><b>카카오톡 알림톡 바로 발권</b><p>카카오톡 예매완료 알림톡의 바코드를 스캐너에 대면 즉시 티켓이 출력됩니다.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="dock">
+      <a class="cta tap" data-go="issued"><p>티켓 조회 및 출력하기</p><span class="arw"><span class="ms b">arrow_forward</span></span></a>
+      <nav class="tabbar">
+        <a class="tab tap" data-go="home" data-tr="fade"><span class="ms">movie</span><p>현재상영작</p></a>
+        <a class="tab tap" data-go="showtime" data-tr="fade"><span class="ms">calendar_month</span><p>상영시간표</p></a>
+        <a class="tab on"><span class="ms">confirmation_number</span><p>티켓출력</p></a>
+        <a class="tab tap" data-go="easy" data-tr="fade"><span class="ms">accessibility_new</span><p>간편모드</p></a>
+      </nav>
+    </div>
+  </section>
+
+  <!-- ===================== 07-1 ISSUED ===================== -->
+  <section class="screen" id="issued" data-name="07-1 발권 완료">
+    <div class="scroll">
+      <header class="hdr">
+        <button class="cbtn tap" data-back><span class="ms">chevron_left</span></button>
+        <div class="bpill"><span class="ms">movie</span><p class="js-theater">CGV 강남 플래그십점</p></div>
+        <button class="cbtn tap" data-go="home" data-tr="fade"><span class="ms">home</span></button>
+      </header>
+      <div class="sheet">
+        <div class="done">
+          <span class="lt"><span class="ms">task_alt</span></span>
+          <div><b>티켓이 정상 발권되었습니다</b><p>출력구에서 지류 티켓 수령 후 입장해주세요.</p></div>
+        </div>
+        <p class="reprint tap" data-toast="영수증을 다시 출력했어요">영수증 재출력 요청</p>
+        <div class="tcard card">
+          <div class="row">
+            <div><span class="badge"><span class="ms">confirmation_number</span>발권 완료 #TK-8924</span>
+              <h3>듄: 파트 2 <span>| IMAX 7관</span></h3></div>
+            <div class="pimg"><img src="assets/poster-dune2.jpg" alt=""></div>
+          </div>
+          <div class="det">
+            <div class="r"><span>상영일시</span><b>2025. 03. 15 (토) 14:20 ~ 17:06</b></div>
+            <hr>
+            <div class="r"><span>좌석</span><b class="bb">F열 7번, 8번 (일반 2석)</b></div>
+          </div>
+          <div class="notice"><span class="ms">timer</span><p>입장 가능까지 <u>24분</u> 남았습니다 (3층 7관)</p></div>
+        </div>
+        <a class="pcard card tap" data-go="parking">
+          <span class="pp">P</span>
+          <div class="c"><div class="t"><b>차량 주차 등록하기</b><i>3시간 무료</i></div><p>당일 관람 차량이 있으신가요? 간편하게 등록하세요</p></div>
+          <span class="go"><span class="ms" style="font-size:20px">chevron_right</span></span>
+        </a>
+        <div class="ocard card">
+          <div class="l"><span class="lt"><span class="ms">receipt_long</span></span><div><b>종이 티켓 배출구 확인</b><small>푸른색 LED 램프가 깜빡입니다</small></div></div>
+          <span class="led"><i></i>배출중</span>
+        </div>
+      </div>
+    </div>
+    <div class="dock">
+      <a class="cta tap" data-go="home" data-tr="fade"><div class="col"><p>처음 화면으로</p><span class="sub">티켓을 잊지 말고 챙겨주세요</span></div><span class="arw"><span class="ms b">arrow_forward</span></span></a>
+    </div>
+  </section>
+
+  <!-- ===================== 07-2 PARKING ===================== -->
+  <section class="screen" id="parking" data-name="07-2 주차 등록">
+    <div class="scroll">
+      <header class="hdr">
+        <button class="cbtn tap" data-back><span class="ms">chevron_left</span></button>
+        <div class="bpill"><span class="ms">movie</span><p class="js-theater">CGV 강남 플래그십점</p></div>
+        <button class="cbtn tap" data-go="home" data-tr="fade"><span class="ms">home</span></button>
+      </header>
+      <div class="sheet">
+        <div class="vt card">
+          <div class="l"><span class="ms">check_circle</span><b>듄: 파트 2</b><span>| F열 7, 8번</span><small>관람 인증 완료</small></div>
+          <span class="tk">#TK-8924</span>
+        </div>
+        <div class="ptitle"><span class="pp">P</span><div><b>당일 관람객 3시간 무료 주차 등록</b><small>차량 번호 뒷 4자리를 입력해 주세요 (지하 2~4층 무료 적용)</small></div></div>
+        <p class="skip tap" data-back>주차 등록 없이 건너뛰기</p>
+        <div class="plate card">
+          <div class="hd"><span class="l"><span class="ms">directions_car</span>차량 번호 입력</span><small>뒷자리 4개 숫자</small></div>
+          <div class="digits" id="digits"><span class="digit">3</span><span class="digit">4</span><span class="digit">5</span><span class="digit cur">6</span></div>
+          <div class="keys" id="plateKeys"></div>
+          <a class="regbtn tap" data-action="register"><span class="ms">check_circle</span>차량 번호 등록 완료</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 09 EASY ===================== -->
+  <section class="screen" id="easy" data-name="09 간편 배리어프리 모드">
+    <div class="scroll">
+      <header class="hdr">
+        <button class="cbtn tap" data-back><span class="ms">chevron_left</span></button>
+        <div class="bpill"><span class="ms">movie</span><p>CGV 간편 배리어프리 모드</p></div>
+        <button class="cbtn tap" data-go="home" data-tr="fade"><span class="ms">home</span></button>
+      </header>
+      <div class="sheet">
+        <div class="modes">
+          <button class="emode tap" data-toggle><span class="lt"><span class="ms">accessible</span></span><div><b>화면 높이 낮춤</b><small>휠체어 · 어린이</small></div></button>
+          <button class="emode tap is-sel" data-toggle><span class="lt"><span class="ms">volume_up</span></span><div><b>음성 안내 켜짐</b><small>스피커 안내 중</small></div></button>
+        </div>
+        <div class="ecard" style="top:130px">
+          <div class="row"><span class="yb">지금 바로 상영</span><span class="yb" style="color:#434937">인기 1위 추천</span></div>
+          <div><h3>듄: 파트 2</h3><p class="d">14:40 시작 | 2관 3층 | 잔여 48석</p></div>
+          <a class="bigbtn tap" style="background:var(--yellow-soft)" data-go="showtime">바로 예매하기<span class="ms">arrow_forward</span></a>
+        </div>
+        <div class="ecard" style="top:360px">
+          <div class="row"><span class="gb">10초 간편 발권</span><small style="font-size:13px;font-weight:500;color:var(--g73)">종이 티켓 즉시 출력</small></div>
+          <div><h3>예매한 티켓 바로 찾기</h3><p class="d" style="font-size:15px">휴대폰 번호만 누르면 즉시 종이 티켓이 출력됩니다</p></div>
+          <a class="bigbtn tap" style="background:var(--sel);border:1px solid var(--yellow)" data-go="find">전화번호로 찾기<span class="ms">dialpad</span></a>
+        </div>
+        <div class="tt-hd"><b>오늘의 다른 상영 시간표</b><small>터치하여 좌석 선택</small></div>
+        <div class="scard">
+          <div class="row">
+            <div class="pimg"><img src="assets/poster-dune3.jpg" alt=""></div>
+            <div class="c">
+              <div class="n"><i>12</i><b>듄: 파트 2</b></div>
+              <div class="m"><p><span class="t">14:20</span><span>| 4관 (180석)</span></p><em>잔여 52석</em></div>
+            </div>
+          </div>
+          <a class="pick tap" data-go="showtime">선택하기<span class="ms">touch_app</span></a>
+        </div>
+      </div>
+    </div>
+    <div class="enav">
+      <nav class="tabbar">
+        <a class="tab tap" data-go="home" data-tr="fade"><span class="ms">movie</span><p>현재상영작</p></a>
+        <a class="tab tap" data-go="showtime" data-tr="fade"><span class="ms">calendar_month</span><p>상영시간표</p></a>
+        <a class="tab tap" data-go="find" data-tr="fade"><span class="ms">confirmation_number</span><p>티켓출력</p></a>
+        <a class="tab on"><span class="ms">accessibility_new</span><p>간편모드</p></a>
+      </nav>
+    </div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+</div>
+</div>
+
+<script>
+(() => {
+  if (location.search.includes('bare')) document.body.classList.add('bare');
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const won = n => n.toLocaleString('ko-KR');
+
+  /* ---------- data ---------- */
+  const theaters = [
+    ['CGV 강남 플래그십점', '0.4km', ['IMAX','4DX'], '서울 강남구 강남대로 438', true],
+    ['CGV 강남대로점', '0.9km', ['SCREENX'], '서울 강남구 테헤란로 102', false],
+    ['CGV 코엑스점', '2.1km', ['IMAX','DOLBY'], '서울 강남구 영동대로 513', true],
+    ['CGV 압구정점', '3.0km', ['PREMIUM'], '서울 강남구 압구정로 30길 45', false],
+    ['CGV 용산아이파크몰점', '7.8km', ['IMAX','4DX','SCREENX'], '서울 용산구 한강대로 23길 55', false],
+    ['CGV 여의도점', '9.4km', ['4DX'], '서울 영등포구 국제금융로 10', false],
+  ];
+  const movies = [
+    { title:'야간: Nightfall', img:'poster-nightfall.jpg', age:'12', rank:'예매율 1위', hot:true, genre:'액션, 스릴러 · 128분', tag:'진실은 어둠 속에서 드러난다', tags:['#액션스릴러','#아이맥스','#한국영화'],
+      times:[['14:20','선택가능','IMAX','84석 여유','7관 (총 340석)'],['17:40','쾌적','2D 일반','142석','3관 (총 210석)'],['20:10','마감임박','4DX','19석','1관 (총 160석)',1],['23:30','선택가능','IMAX','215석','7관 (총 340석)']], sel:3 },
+    { title:'듄: 파트 2', img:'poster-dune.jpg', age:'12', rank:'예매율 2위', hot:true, genre:'SF, 어드벤처 · 166분', tag:'반란의 불길, 구원자인가 파괴자인가', tags:['#IMAX','#돌비시네마','#SF대작'],
+      times:[['13:10','선택가능','IMAX LASER','62석','7관 (총 340석)'],['16:30','쾌적','2D 일반','118석','2관 (총 210석)'],['19:50','마감임박','4DX SCREEN','8석','1관 (총 160석)',1],['22:40','선택가능','심야 IMAX','174석','7관 (총 340석)']] },
+    { title:'파묘', img:'poster-exhuma.jpg', age:'15', rank:'예매율 3위', hot:false, genre:'미스터리, 공포 · 134분', tag:'험한 것이 나왔다', tags:['#한국영화','#오컬트','#천만영화'],
+      times:[['14:00','선택가능','2D 일반','88석','5관 (총 180석)'],['17:10','선택가능','SOUNDX','24석','4관 (총 150석)']] },
+  ];
+
+  /* ---------- build 01-1 theater list ---------- */
+  $('#theaterList').innerHTML = theaters.map(([n,d,tags,a,fav],i) => `
+    <button class="theater tap ${i===0?'is-sel':''}" data-name="${n}">
+      <div class="c"><div class="n"><p>${n}</p><span class="ms ${fav?'fav':''}">star</span></div>
+        <div class="tags">${tags.map(t=>`<span class="chip">${t}</span>`).join('')}</div><p class="a">${a}</p></div>
+      <div class="r"><p class="dist">${d}</p><span class="ck"><span class="ms b">check</span></span><span class="ms chev">chevron_right</span></div>
+    </button>`).join('');
+
+  /* ---------- build 02 carousel ---------- */
+  $('#carousel').innerHTML = movies.map((m,mi) => `
+    <article class="mcard ${mi===0?'is-active':''}" data-mi="${mi}">
+      <div class="top">
+        <div class="poster"><img src="assets/${m.img}" alt=""><span class="age">${m.age}</span></div>
+        <div class="info">
+          <div class="rk"><span class="chip ${m.hot?'y':''}">${m.rank}</span><span class="gn">${m.genre}</span></div>
+          <h3>${m.title}</h3>
+          <div class="tags">${m.tags.map((t,i)=>`<span class="chip ${m.hot&&i===0?'y':''}">${t}</span>`).join('')}</div>
+        </div>
+      </div>
+      <div class="grid2">${m.times.map(([t,b,ty,s,h,warn],ti)=>`
+        <button class="st tap ${m.sel===ti?'is-sel':''}" data-group-st data-mi="${mi}" data-ti="${ti}">
+          <div class="t"><b>${t}</b><span class="chip ${warn?'hot':''}" data-badge="${b}">${m.sel===ti?'선택됨':b}</span></div>
+          <div class="m"><span>${ty}</span><em class="${warn?'warn':''}">${s}</em></div>
+          <p class="h">${h}</p>
+        </button>`).join('')}</div>
+    </article>`).join('');
+
+  /* ---------- seats ---------- */
+  const seatMap = { A:[1,2,3,4,5,6], B:[1,2,3,4,5,6,7,8], C:[1,2,3,4,5,6,7,8], D:[1,2,3,4,5,6,7,8], E:[1,2,3,4,5,6,7,8], F:[1,2,3,4,5,6] };
+  const taken = { B:[3,4], C:[6,7,8], D:[2], E:[5], F:[5,6] };
+  const picked = new Set();
+  $('#seats').innerHTML = Object.entries(seatMap).map(([r,ns]) => {
+    const s = n => { const id=r+n, t=(taken[r]||[]).includes(n); return `<button class="seat ${t?'taken':''} ${picked.has(id)?'is-sel':''}" data-seat="${id}" ${t?'disabled':''}>${id}</button>`; };
+    const half = ns.length===6 ? 3 : 4;
+    return `<div class="srow"><div class="sgrp ${ns.length===6?'r':''}">${ns.slice(0,half).map(s).join('')}</div><div class="sgrp">${ns.slice(half).map(s).join('')}</div></div>`;
+  }).join('');
+
+  /* ---------- keypads ---------- */
+  const keypad = () => ['1','2','3','4','5','6','7','8','9','초기화','0','bs'].map(k =>
+    `<button class="key tap ${k==='초기화'||k==='bs'?'fn':''}" data-k="${k}">${k==='bs'?'<span class="ms">backspace</span>':k}</button>`).join('');
+  $('#plateKeys').innerHTML = keypad();
+  $('#bookKeys').innerHTML = keypad();
+  $$('#bookKeys .key').forEach(k => k.style.height = '48px');
+
+  /* ---------- state ---------- */
+  const state = { price:16000, count:0, typeName:'일반', movie:0, time:3 };
+  const fmtSeats = () => {
+    const list=[...picked].sort(); if(!list.length) return '좌석 미선택';
+    const byRow={}; list.forEach(id=>{(byRow[id[0]] ||= []).push(id.slice(1))});
+    return Object.entries(byRow).map(([r,ns])=>`${r}열 ${ns.join('번, ')}번`).join(' / ');
+  };
+  const refreshTotals = () => {
+    const total = state.price * state.count;
+    $$('.js-total').forEach(e => e.textContent = won(total));
+    $$('.js-cnt').forEach(e => e.textContent = `예매 총 금액 (${state.count}매)`);
+    $$('.js-seats').forEach(e => e.textContent = fmtSeats());
+    $$('.js-seatcnt').forEach(e => e.textContent = `(${state.typeName} ${state.count}석)`);
+    const ready = state.count > 0 && picked.size === state.count;
+    const c = document.getElementById('sheetCta'); if (c) c.classList.toggle('off', !ready);
+  };
+  const refreshSummary = () => {
+    const m = movies[state.movie], t = m.times[state.time];
+    $('#sumMovie').textContent = m.title; $('#sumTime').textContent = t[0];
+    $('#shMovie').textContent = m.title; $('#shSub').textContent = `03.15 (금) ${t[0]} · ${t[2]} ${t[4].split(' ')[0]}`;
+  };
+
+  /* ---------- snack (05-1, 05-2) ---------- */
+  const snackPrice = { combo:11000, caramel:7500, nacho:8500, hotdog:5500, drink:3500 };
+  const cart = {};
+  let comboQty = 1;
+  const refreshCart = () => {
+    const n = Object.values(cart).reduce((a,b)=>a+b,0);
+    const sum = Object.entries(cart).reduce((a,[k,q])=>a+snackPrice[k]*q,0);
+    $('#cartCount').textContent = n || '';
+    $('#cartLabel').textContent = n ? `담은 메뉴 ${n}개` : '담은 메뉴 없음';
+    $('#cartCta').classList.toggle('off', !n);
+    $('#cartTotal').textContent = `${won(sum)}원`;
+  };
+  const refreshOption = () => {
+    const add = $$('#snack-option .ogrid .opt.is-sel').reduce((a,o)=>a+(+o.dataset.add||0),0);
+    const n = Object.values(cart).reduce((a,b)=>a+b,0);
+    const sum = Object.entries(cart).reduce((a,[k,q])=>a+(snackPrice[k]+(k==='combo'?add:0))*q,0);
+    $('#optLabel').textContent = add ? `총 ${n}개 · 옵션 +${won(add)}원` : `총 ${n}개 · 추가금 없음`;
+    $('#optTotal').textContent = `${won(sum)}원`;
+  };
+  const snackName = { combo:'시그니처 CGV 콤보', caramel:'더블 카라멜 팝콘', nacho:'치즈볼 & 나초 세트', hotdog:'칠리치즈 핫도그', drink:'탄산음료 / 에이드' };
+  const renderSnackPay = () => {
+    const pick = g => $(`#snack-option [data-group="${g}"] .is-sel`);
+    const nm = el => el ? $('.nm', el).textContent : '';
+    const add = $$('#snack-option .ogrid .opt.is-sel').reduce((a,o)=>a+(+o.dataset.add||0),0);
+    let n = 0, sum = 0;
+    $('#snackOrder').innerHTML = Object.entries(cart).map(([k,q]) => {
+      const unit = snackPrice[k] + (k==='combo' ? add : 0);
+      const detail = k==='combo'
+        ? `${nm(pick('opt-pop'))} · ${nm(pick('opt-d1'))}(${pick('ice').textContent.trim()}) · ${nm(pick('opt-d2'))}`
+        : '';
+      n += q; sum += unit*q;
+      return `<div class="oitem"><div><b>${snackName[k]}</b>${detail?`<small>${detail}</small>`:''}</div>
+        <div class="q"><span>${q}개</span><em>${won(unit*q)}원</em></div></div>`;
+    }).join('');
+    $('#snackPayCnt').textContent = `주문 총 금액 (${n}개)`;
+    $('#snackPayTotal').textContent = `${won(sum)}원`;
+    $('#snackPayBar').textContent = won(sum);
+  };
+
+  /* ---------- navigation ---------- */
+  const vp = $('#vp');
+  const screens = $$('.screen');
+  let current = $('#home'); current.classList.add('active');
+  const stack = ['home'];
+  const side = $('#side');
+  screens.forEach(s => { const b=document.createElement('button'); b.textContent=s.dataset.name; b.dataset.jump=s.id; side.appendChild(b); });
+  const markSide = () => $$('#side button').forEach(b => b.classList.toggle('on', b.dataset.jump===current.id));
+  markSide();
+
+  const EASE = 'cubic-bezier(.2,.8,.2,1)';
+  function go(id, tr='push', isBack=false){
+    const next = document.getElementById(id); if(!next || next===current) return;
+    const prev = current;
+    next.classList.add('active'); $('.scroll', next) && ($('.scroll', next).scrollTop = 0);
+    next.style.zIndex = 2; prev.style.zIndex = 1;
+    const done = () => { prev.classList.remove('active'); prev.style.zIndex=''; next.style.zIndex=''; prev.classList.remove('sheet-open'); };
+    let a;
+    if(tr==='fade'){
+      a = next.animate([{opacity:0},{opacity:1}],{duration:250,easing:'ease-out'});
+    }else if(isBack){
+      next.style.zIndex=1; prev.style.zIndex=2;
+      next.animate([{transform:'translateX(-30%)'},{transform:'none'}],{duration:320,easing:EASE});
+      a = prev.animate([{transform:'none'},{transform:'translateX(100%)'}],{duration:320,easing:EASE});
+    }else{
+      prev.animate([{transform:'none'},{transform:'translateX(-30%)'}],{duration:320,easing:EASE});
+      a = next.animate([{transform:'translateX(100%)'},{transform:'none'}],{duration:320,easing:EASE});
+    }
+    a.onfinish = done;
+    current = next;
+    if(!isBack) stack.push(id);
+    markSide();
+  }
+  function back(){
+    if(stack.length < 2){ go('home','fade'); stack.length=0; stack.push('home'); return; }
+    stack.pop(); go(stack[stack.length-1], 'push', true);
+  }
+
+  let toastT;
+  function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1600); }
+
+  /* ---------- click handling ---------- */
+  document.addEventListener('click', e => {
+    const jump = e.target.closest('[data-jump]');
+    if(jump){ stack.length=0; stack.push(jump.dataset.jump); go(jump.dataset.jump,'fade'); return; }
+
+    const el = e.target.closest('[data-go],[data-back],[data-action],[data-toast],[data-group] > *,[data-group-st],[data-seat],[data-mode],[data-toggle],.key');
+    if(!el) return;
+
+    if(el.matches('[data-seat]')){
+      const id=el.dataset.seat;
+      if(picked.has(id)){ picked.delete(id); el.classList.remove('is-sel'); }
+      else {
+        if(state.manual && picked.size>=state.count) return toast(`인원 ${state.count}명에 맞춰 ${state.count}석까지 선택할 수 있어요`);
+        if(picked.size>=6) return toast('최대 6석까지 선택할 수 있어요');
+        picked.add(id); el.classList.add('is-sel');
+      }
+      if(!state.manual){ state.count = picked.size; $$('.cnt').forEach(c=>c.classList.toggle('is-sel', +c.dataset.n===picked.size)); }
+      refreshTotals(); return;
+    }
+    if(el.matches('[data-group-st]')){
+      $$('.st').forEach(s=>{ s.classList.remove('is-sel'); const c=$('.chip',s); c.textContent=c.dataset.badge; });
+      el.classList.add('is-sel'); $('.chip',el).textContent='선택됨';
+      state.movie=+el.dataset.mi; state.time=+el.dataset.ti; refreshSummary(); return;
+    }
+    if(el.parentElement && el.parentElement.matches('[data-group]')){
+      const g=el.parentElement.dataset.group;
+      [...el.parentElement.children].forEach(c=>c.classList.remove('is-sel','chk')); el.classList.add('is-sel');
+      if(g==='theater'){ const n=el.dataset.name; $('#theaterName').textContent=n; $$('.js-theater').forEach(x=>x.textContent=n); }
+      if(g==='region'){ $('#regionName').textContent=el.dataset.name; $('#regionCount').textContent=$('i',el).textContent+'곳'; }
+      if(g==='type'){ state.price=+el.dataset.price; state.typeName=el.textContent.trim(); refreshTotals(); }
+      if(g==='count'){
+        state.count=+el.dataset.n; state.manual=true;
+        while(picked.size>state.count){ const last=[...picked].pop(); picked.delete(last); const b=document.querySelector(`[data-seat="${last}"]`); if(b) b.classList.remove('is-sel'); }
+        refreshTotals();
+      }
+      if(g.startsWith('opt-')) refreshOption();
+      return;
+    }
+    if(el.matches('[data-mode]')){
+      $$('#find .mode').forEach(m=>m.classList.toggle('is-sel', m===el));
+      $('#find').classList.toggle('m-key', el.dataset.mode==='key'); return;
+    }
+    if(el.matches('[data-toggle]')){ el.classList.toggle('is-sel'); return; }
+    if(el.matches('.key')){
+      const k=el.dataset.k;
+      if(el.closest('#plateKeys')){
+        const d=$$('#digits .digit'); let v=d.map(x=>x.textContent).join('').replace(/\s/g,'');
+        if(k==='초기화') v=''; else if(k==='bs') v=v.slice(0,-1); else if(v.length<4) v+=k; else v=v.slice(1)+k;
+        d.forEach((x,i)=>{ x.textContent=v[i]||''; x.classList.toggle('cur', i===Math.min(v.length,4)-1 || (v.length===0&&i===0)); });
+      }else{
+        const disp=$('#bookNo'); let v=disp.dataset.v||'';
+        if(k==='초기화') v=''; else if(k==='bs') v=v.slice(0,-1); else if(v.length<6) v+=k;
+        disp.dataset.v=v; disp.textContent=(v+'______').slice(0,6).split('').join(' ');
+      }
+      return;
+    }
+    if(el.matches('[data-toast]')){ toast(el.dataset.toast); return; }
+    if(el.matches('[data-back]')){ back(); return; }
+    if(el.matches('[data-action]')){
+      const a=el.dataset.action;
+      if(a==='open-sheet') $('#showtime').classList.add('sheet-open');
+      if(a==='close-sheet') $('#showtime').classList.remove('sheet-open');
+      if(a==='to-payment'){
+        if(!state.count) return toast('관람 인원을 선택해주세요');
+        if(picked.size !== state.count) return toast(`좌석을 ${state.count}석 선택해주세요`);
+        go('payment'); setTimeout(()=>$('#showtime').classList.remove('sheet-open'),350);
+      }
+      if(a==='combo-minus'||a==='combo-plus'){
+        comboQty = Math.min(9, Math.max(1, comboQty + (a==='combo-plus'?1:-1)));
+        $('#comboQty').textContent = comboQty;
+      }
+      if(a==='add'){
+        const k = el.dataset.item, q = k==='combo' ? comboQty : 1;
+        cart[k] = (cart[k]||0) + q; refreshCart(); refreshOption();
+        toast(`${$('h3,h4', el.closest('.card')).textContent} ${q}개를 담았어요`);
+      }
+      if(a==='to-option'){
+        if(!Object.keys(cart).length) return toast('메뉴를 먼저 담아주세요');
+        if(cart.combo) go('snack-option'); else { renderSnackPay(); go('snack-pay'); }
+      }
+      if(a==='to-snack-pay'){ renderSnackPay(); go('snack-pay'); }
+      if(a==='snack-order'){
+        toast('결제가 완료됐어요 · 준비되면 알림톡으로 알려드려요');
+        Object.keys(cart).forEach(k=>delete cart[k]); comboQty=1; $('#comboQty').textContent=1; refreshCart(); refreshOption();
+        setTimeout(()=>{ go('home','fade'); stack.length=0; stack.push('home'); }, 1200);
+      }
+      if(a==='register'){
+        const v=$$('#digits .digit').map(x=>x.textContent).join('');
+        if(v.length<4) return toast('차량 번호 4자리를 입력해주세요');
+        toast(`${v} 차량, 3시간 무료 주차가 등록되었어요`); setTimeout(back, 900);
+      }
+      return;
+    }
+    if(el.matches('[data-go]')){ go(el.dataset.go, el.dataset.tr||'push'); }
+  });
+
+  /* ---------- carousel active card ---------- */
+  const car=$('#carousel'), cards=$$('.mcard',car), dots=$$('#dots i');
+  let raf;
+  car.addEventListener('scroll', () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const mid = car.scrollLeft + car.clientWidth/2; let best=0, bd=1e9;
+      cards.forEach((c,i)=>{ const cx=c.offsetLeft+c.offsetWidth/2; const d=Math.abs(cx-mid); if(d<bd){bd=d;best=i;} });
+      cards.forEach((c,i)=>c.classList.toggle('is-active', i===best));
+      dots.forEach((d,i)=>d.classList.toggle('on', i===best));
+    });
+  });
+  // drag-to-scroll for mouse users
+  [car, ...$$('.hscroll')].forEach(sc => {
+    let down=false, sx=0, sl=0, moved=false;
+    sc.addEventListener('pointerdown', e => { if(e.pointerType!=='mouse') return; down=true; moved=false; sx=e.clientX; sl=sc.scrollLeft; sc.style.scrollSnapType='none'; });
+    window.addEventListener('pointermove', e => { if(!down) return; const dx=e.clientX-sx; if(Math.abs(dx)>4) moved=true; sc.scrollLeft=sl-dx; });
+    window.addEventListener('pointerup', () => { if(!down) return; down=false; sc.style.scrollSnapType='';
+      if(sc===car){ const i=cards.findIndex(c=>c.classList.contains('is-active')); car.scrollTo({left:cards[i].offsetLeft-45,behavior:'smooth'}); } });
+    sc.addEventListener('click', e => { if(moved){ e.stopPropagation(); e.preventDefault(); moved=false; } }, true);
+  });
+  // mouse-wheel vertical -> horizontal on carousels
+  [car, ...$$('.hscroll')].forEach(sc => sc.addEventListener('wheel', e => { if(e.shiftKey && Math.abs(e.deltaY)>Math.abs(e.deltaX)){ sc.scrollLeft+=e.deltaY; e.preventDefault(); } }, {passive:false}));
+
+  // drag-to-scroll vertically for mouse users on .scroll
+  $$('.scroll').forEach(sc => {
+    let down=false, sy=0, st=0, moved=false;
+    sc.addEventListener('pointerdown', e => { if(e.pointerType!=='mouse' || e.target.closest('.carousel,.hscroll')) return; down=true; moved=false; sy=e.clientY; st=sc.scrollTop; });
+    window.addEventListener('pointermove', e => { if(!down) return; const dy=e.clientY-sy; if(Math.abs(dy)>5) moved=true; if(moved) sc.scrollTop=st-dy; });
+    window.addEventListener('pointerup', () => { down=false; });
+    sc.addEventListener('click', e => { if(moved){ e.stopPropagation(); e.preventDefault(); moved=false; } }, true);
+  });
+
+  refreshTotals();
+  refreshCart();
+  refreshOption();
+  renderSnackPay();
+
+  /* ---------- deep link: index.html#showtime, #showtime-sheet ... ---------- */
+  const h = location.hash.slice(1);
+  if(h){
+    const id = h.replace('-sheet','');
+    const el = document.getElementById(id);
+    if(el && el.classList.contains('screen')){
+      current.classList.remove('active'); el.classList.add('active'); current = el;
+      stack.length = 0; stack.push(id); markSide();
+      if(h.endsWith('-sheet')) el.classList.add('sheet-open');
+    }
+  }
+})();
+</script>
+<script>
+/* 화면 높이·폭에 맞춰 폰 프레임 크기 자동 조절 */
+(function(){
+  var dev=document.querySelector('.device');
+  function fit(){
+    if(document.body.classList.contains('bare')){dev.style.zoom='';return;}
+    var side=window.innerWidth>760?260:0;
+    var z=Math.min(1,(window.innerHeight-48)/868,(window.innerWidth-side-24)/414);
+    dev.style.zoom=z<1?z.toFixed(3):'';
+  }
+  window.addEventListener('resize',fit);fit();
+})();
+</script>
+</body>
+</html>

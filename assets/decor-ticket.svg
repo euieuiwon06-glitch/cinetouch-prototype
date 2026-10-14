@@ -1,0 +1,28 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="120" height="200" viewBox="0 0 120 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Decor/Ticket" clip-path="url(#clip0_0_73)">
+<path id="Vector" d="M14 0H106C109.713 0 113.274 1.475 115.899 4.1005C118.525 6.72601 120 10.287 120 14V84C115.757 84 111.687 85.6857 108.686 88.6863C105.686 91.6869 104 95.7565 104 100C104 104.243 105.686 108.313 108.686 111.314C111.687 114.314 115.757 116 120 116V186C120 189.713 118.525 193.274 115.899 195.899C113.274 198.525 109.713 200 106 200H14C10.287 200 6.72601 198.525 4.1005 195.899C1.475 193.274 0 189.713 0 186L0 116C4.24346 116 8.31313 114.314 11.3137 111.314C14.3143 108.313 16 104.243 16 100C16 95.7565 14.3143 91.6869 11.3137 88.6863C8.31313 85.6857 4.24346 84 0 84L0 14C0 10.287 1.475 6.72601 4.1005 4.1005C6.72601 1.475 10.287 0 14 0Z" fill="url(#paint0_linear_0_73)"/>
+<g id="Group">
+<g id="Vector_2">
+<path d="M40 118L52 88Z" fill="black"/>
+<path d="M40 118L52 88" stroke="#1C1B17" stroke-opacity="0.75" stroke-width="7" stroke-linecap="round"/>
+</g>
+<g id="Vector_3">
+<path d="M58 118L70 88Z" fill="black"/>
+<path d="M58 118L70 88" stroke="#1C1B17" stroke-opacity="0.75" stroke-width="7" stroke-linecap="round"/>
+</g>
+<g id="Vector_4">
+<path d="M76 118L88 88Z" fill="black"/>
+<path d="M76 118L88 88" stroke="#1C1B17" stroke-opacity="0.75" stroke-width="7" stroke-linecap="round"/>
+</g>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_73" x1="0" y1="0" x2="87.2" y2="174.4" gradientUnits="userSpaceOnUse">
+<stop stop-color="white" stop-opacity="0.16"/>
+<stop offset="1" stop-color="white" stop-opacity="0.03"/>
+</linearGradient>
+<clipPath id="clip0_0_73">
+<rect width="120" height="200" fill="white"/>
+</clipPath>
+</defs>
+</svg>
